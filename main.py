@@ -10,9 +10,7 @@ HEIGHT = 700
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
-fps = 200
-
-print("test")
+fps = 500
 
 icon_pygame = pygame.image.load('icon.png')
 selectMarker = pygame.image.load("select.png")
@@ -54,7 +52,6 @@ boardCoords = (50, 90)
 squareSize = 64
 mousePressed = False
 mouseClick = False
-playerColor = 'w'
 
 hover: Square = None
 selected: Square = None
@@ -83,10 +80,6 @@ def handleMouseLogic():
     else:
         mousePressed = False
         mouseClick = False
-
-
-def getBoardFromCoord(coord):
-    return board[coord[0]+coord[1]*8]
 
 
 def renderBoard():
