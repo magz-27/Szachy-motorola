@@ -1,97 +1,228 @@
+import math as pymath
 import pygame
+from pygame.locals import *
+import util
+from engine import *
 
 pygame.init()
 WIDTH = 1000
-HEIGHT = 900
+HEIGHT = 700
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
-pygame.display.set_caption('Gra w Szachy dla 2 graczy w pygame')
-font = pygame.font.Font('freesansbold.ttf', 20)
-big_font = pygame.font.Font('freesansbold.ttf', 50)
-
+pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
-fps = 60
+fps = 200
 
-#zmienne dotyczące gry i zdjęć
-pionki_biale = ['wieza', 'skoczek', 'goniec', 'krol', 'hetman', 'goniec', 'skoczek', 'wieza'
-                , 'pion', 'pion', 'pion', 'pion', 'pion', 'pion', 'pion', 'pion']
-pionki_biale_lokalizacje = [(0,0), (1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0), (0,1), (1,1), (2,1), (3,1), (4,1), (5,1), (6,1), (7,1)]
-pionki_czarne = ['wieza', 'skoczek', 'goniec', 'krol', 'hetman', 'goniec', 'skoczek', 'wieza'
-                , 'pion', 'pion', 'pion', 'pion', 'pion', 'pion', 'pion', 'pion']
-pionki_czarne_lokalizacje = [(0,7), (1,7), (2,7), (3,7), (4,7), (5,7), (6,7), (7,7), (0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (6,6), (7,6)]
+icon_pygame = pygame.image.load('icon.png')
+selectMarker = pygame.image.load("select.png")
+dotMarker = pygame.image.load("dot.png")
 
-zbite_biale_pionki = []
-zbite_czarne_pionki = []
-# 0 - ruch białego, nie wybrano figury: 1 - ruch białego, wybrano figure: 2 - ruch czarnego, nie wybrano figury: 3 - ruch czarnego, wybrano figure
-kogo_kolej = 0
+pygame.display.set_icon(icon_pygame)
 
-wybor = 1000
-poprawne_ruchy = []
-#import grafik
-czarny_hetman = pygame.image.load('assets/images/queen_dark.png')
-czarny_hetman = pygame.transform.scale(czarny_hetman, (80, 80))
-czarny_hetman_maly = pygame.transform.scale(czarny_hetman, (45, 45))
+fnt56 = pygame.font.Font("font.otf", 56)
+fnt42 = pygame.font.Font("font.otf", 42)
+fnt32 = pygame.font.Font("font.otf", 32)
+fnt16 = pygame.font.Font("font.otf", 16)
+fnt12 = pygame.font.Font("font.otf", 12)
 
-czarny_krol = pygame.image.load('assets/images/king_dark.png')
-czarny_krol = pygame.transform.scale(czarny_krol, (80, 80))
-czarny_krol_maly = pygame.transform.scale(czarny_krol, (45, 45))
 
-czarna_wieza = pygame.image.load('assets/images/rook_dark.png')
-czarna_wieza = pygame.transform.scale(czarna_wieza, (80, 80))
-czarna_wieza_mala = pygame.transform.scale(czarna_wieza, (45, 45))
+pieceImages = {"Pawn Light": pygame.image.load('chessPieces/Pawn Light.png').convert_alpha(), "Rook Light": pygame.image.load(
+    'chessPieces/Rook Light.png').convert_alpha(),
+               "Knight Light": pygame.image.load('chessPieces/Knight Light.png').convert_alpha(), "Bishop Light": pygame.image.load(
+        'chessPieces/Bishop Light.png').convert_alpha(),
+               "Queen Light": pygame.image.load('chessPieces/Queen Light.png').convert_alpha(), "King Light": pygame.image.load(
+        'chessPieces/King Light.png').convert_alpha(),
+               "Pawn Dark": pygame.image.load('chessPieces/Pawn Dark.png').convert_alpha(), "Rook Dark": pygame.image.load(
+        'chessPieces/Rook Dark.png').convert_alpha(),
+               "Knight Dark": pygame.image.load('chessPieces/Knight Dark.png').convert_alpha(), "Bishop Dark": pygame.image.load(
+        'chessPieces/Bishop Dark.png').convert_alpha(),
+               "Queen Dark": pygame.image.load('chessPieces/Queen Dark.png').convert_alpha(), "King Dark": pygame.image.load(
+        'chessPieces/King Dark.png').convert_alpha(),
+               }
 
-czarny_goniec = pygame.image.load('assets/images/bishop_dark.png')
-czarny_goniec = pygame.transform.scale(czarny_goniec, (80, 80))
-czarny_goniec_maly = pygame.transform.scale(czarny_goniec, (45, 45))
+color_gray = (74, 73, 71)
+color_checkerwhite = (231, 225, 209)
+color_checkerblack = (194, 189, 174)
 
-czarny_skoczek = pygame.image.load('assets/images/knight_dark.png')
-czarny_skoczek = pygame.transform.scale(czarny_skoczek, (80, 80))
-czarny_skoczek_maly = pygame.transform.scale(czarny_skoczek, (45, 45))
+color_bluetest = (0, 188, 212)
+color_redtest = (236, 70, 70)
 
-czarny_pionek = pygame.image.load('assets/images/pawn_dark.png')
-czarny_pionek = pygame.transform.scale(czarny_pionek, (65, 65))
-czarny_pionek_maly = pygame.transform.scale(czarny_pionek, (45, 45))
+timePassed = 0
+drawCoords = False
+boardCoords = (50, 90)
+squareSize = 64
+mousePressed = False
+mouseClick = False
+playerColor = 'w'
 
-bialy_hetman = pygame.image.load('assets/images/queen_light.png')
-bialy_hetman = pygame.transform.scale(bialy_hetman, (80, 80))
-bialy_hetman_maly = pygame.transform.scale(bialy_hetman, (45, 45))
+hover: Square = None
+selected: Square = None
 
-bialy_krol = pygame.image.load('assets/images/king_light.png')
-bialy_krol = pygame.transform.scale(bialy_krol, (80, 80))
-bialy_krol_maly = pygame.transform.scale(bialy_krol, (45, 45))
+possibleMoves = []
 
-biala_wieza = pygame.image.load('assets/images/rook_light.png')
-biala_wieza = pygame.transform.scale(biala_wieza, (80, 80))
-biala_wieza_mala = pygame.transform.scale(biala_wieza, (45, 45))
+initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 
-bialy_goniec = pygame.image.load('assets/images/bishop_light.png')
-bialy_goniec = pygame.transform.scale(bialy_goniec, (80, 80))
-bialy_goniec_maly = pygame.transform.scale(bialy_goniec, (45, 45))
+# Convert board from strings to Squares
+for i in range(8):
+    for j in range(8):
+        current = j+i*8
+        if board[current] == "": board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j, i), Type(None, None))
+        else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
 
-bialy_skoczek = pygame.image.load('assets/images/knight_light.png')
-bialy_skoczek = pygame.transform.scale(bialy_skoczek, (80, 80))
-bialy_skoczek_maly = pygame.transform.scale(bialy_skoczek, (45, 45))
 
-bialy_pionek = pygame.image.load('assets/images/pawn_light.png')
-bialy_pionek = pygame.transform.scale(bialy_pionek, (65, 65))
-bialy_pionek_maly = pygame.transform.scale(bialy_pionek, (45, 45))
+def handleMouseLogic():
+    global mouseClick, mousePressed
+    if pygame.mouse.get_pressed()[0]:
+        if mousePressed:
+            mouseClick = False
+        else:
+            mouseClick = True
+        mousePressed = True
+    else:
+        mousePressed = False
+        mouseClick = False
 
-biale_obrazki = [bialy_pionek, bialy_hetman, bialy_krol, bialy_skoczek, biala_wieza, bialy_goniec]
-male_biale_obrazki = [bialy_pionek_maly, bialy_hetman_maly, bialy_krol_maly, bialy_skoczek_maly,
-                      biala_wieza_mala, bialy_goniec_maly]
 
-czarne_obrazki = [czarny_pionek, czarny_hetman, czarny_krol, czarny_skoczek, czarna_wieza, czarny_goniec]
-male_czarne_obrazki = [czarny_pionek_maly, czarny_hetman_maly, czarny_krol_maly, czarny_skoczek_maly,
-                       czarna_wieza_mala, czarny_goniec_maly]
+def getBoardFromCoord(coord):
+    return board[coord[0]+coord[1]*8]
 
-#główna pętla gry
-run = True;
+
+def renderBoard():
+    global boardSurface
+    # Clear the board
+    boardSurface.fill((0, 0, 0, 0))
+
+    # Render pieces
+    for sq in board:
+        if drawCoords:
+            util.DrawText(boardSurface, str(sq.coord), fnt12, (sq.rect[0], sq.rect[1], squareSize, squareSize), color_gray)
+        if sq.type.name is None: continue
+        else: boardSurface.blit(pieceImages[sq.type.getName()+" "+sq.type.getColor()], sq.rect)
+
+    # Render possible squares to move to
+    for m in possibleMoves:
+        boardSurface.blit(dotMarker, m.rect)
+
+
+def hoverSquare():
+    global hover
+    hover = None
+    for sq in board:
+        rds = (0, 0, 0, 0)
+        if sq.coord == (0, 0):
+            rds = (16, 0, 0, 0)
+        elif sq.coord == (7, 0):
+            rds = (0, 16, 0, 0)
+        elif sq.coord == (0, 7):
+            rds = (0, 0, 16, 0)
+        elif sq.coord == (7, 7):
+            rds = (0, 0, 0, 16)
+
+        if sq.rect.collidepoint(mousePos):
+            thisMove = None
+            for m in possibleMoves:
+                if m.coord == sq.coord: thisMove = m
+            if sq.type.color == playerColor or thisMove != None:
+                util.DrawRoundedRect(screen, sq.rect, (250,247,240, 60), rds[0], rds[1], rds[2], rds[3])
+                hover = sq
+    if hover:
+        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+    else:
+        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+
+def clickSquare():
+    global board, selected, possibleMoves
+    for sq in board:
+        # Draw a select marker
+        if sq == selected:
+            screen.blit(selectMarker, sq.rect)
+        if mouseClick:
+            if sq.rect.collidepoint(mousePos):
+                # Select a piece
+                if sq.type.color == playerColor:
+                    possibleMoves = []
+                    if sq == selected:
+                        selected = None
+                    else:
+                        selected = sq
+                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, 0)
+                    renderBoard()
+                # Move a piece
+                else:
+                    if possibleMoves.__contains__(hover) and selected is not None:
+                        board = movePiece(board, selected, hover)
+                        possibleMoves = []
+                        renderBoard()
+
+
+def drawInit():
+    global initSurface
+    boardborder = util.DrawRoundedRect(initSurface,(boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
+    playername1 = util.DrawText(initSurface, "Komputer", fnt56, (60, 20), color_gray)
+    playername2 = util.DrawText(initSurface, "Gracz 1", fnt56, (60, 615), color_gray)
+
+    #Draw the board squares
+    for sq in board:
+        sq.rect.w = squareSize
+        sq.rect.h = squareSize
+
+        clr = (sq.coord[0]+sq.coord[1]*7)%2
+        if clr == 0:
+            clr = color_checkerwhite
+        else:
+            clr = color_checkerblack
+
+        # rounds the squares in the corners
+        rds = (0, 0, 0, 0)
+        if sq.coord == (0, 0):
+            rds = (16, 0, 0, 0)
+        elif sq.coord == (7, 0):
+            rds = (0, 16, 0, 0)
+        elif sq.coord == (0, 7):
+            rds = (0, 0, 16, 0)
+        elif sq.coord == (7, 7):
+            rds = (0, 0, 0, 16)
+
+        square = util.DrawRoundedRect(initSurface, sq.rect, clr, rds[0], rds[1], rds[2], rds[3])
+
+
+run = True
+
+drawInit()
+renderBoard()
+
 while run:
-    timer.tick(fps)
-    screen.fill('dark gray')
-    #obsługa zdarzeń
+    deltaTime = timer.tick(fps) / 1000
+    timePassed += deltaTime
+    mousePos = pygame.mouse.get_pos()
+    screen.fill((250, 247, 240))
+    handleMouseLogic()
+
+    # Timers
+    util.DrawRoundedRect(screen, (430, 25, 110, 50), color_gray, 20, 20, 2, 2)
+    util.DrawText(screen, f'{str(pymath.floor(timePassed)//60).zfill(2)}:{str(pymath.floor(timePassed)%60).zfill(2)}', fnt42, (484,50), (255,255,255), "center",(2,2), 80)
+    util.DrawText(screen, f'TURA', fnt32, (390,60), color_gray, "center")
+    util.DrawRoundedRect(screen, (430, 624, 110, 50), color_checkerwhite, 2, 2, 20, 20)
+    util.DrawText(screen,f'00:00',fnt42, (484, 648), color_gray, "center", (2, 2), 80)
+
+    # Debug
+    # util.DrawText(screen, "click: "+str(mouseClick), fnt16, (screen.get_width()-4, screen.get_height()-122), color_gray, "topright")
+    # util.DrawText(screen, "press: "+str(mousePressed), fnt16, (screen.get_width()-4, screen.get_height()-102), color_gray, "topright")
+    util.DrawText(screen, "Selected: "+str(selected), fnt16, (screen.get_width()-4, screen.get_height()-82), color_gray, "topright")
+    util.DrawText(screen, "Hover: "+str(hover), fnt16, (screen.get_width()-4, screen.get_height()-62), color_gray, "topright")
+    util.DrawText(screen, "Fps: "+str(round(timer.get_fps())), fnt16, (screen.get_width()-4, screen.get_height()-42),  color_gray,"topright")
+    util.DrawText(screen, "Mouse Pos: "+str(mousePos), fnt16, (screen.get_width()-4, screen.get_height()-22),  color_gray,"topright")
+
+    # Board
+    screen.blit(initSurface, (0,0))
+    screen.blit(boardSurface, (0,0))
+    hoverSquare()
+    clickSquare()
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-
     pygame.display.flip()
+
 pygame.quit()
