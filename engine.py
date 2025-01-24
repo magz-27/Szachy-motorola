@@ -4,8 +4,8 @@ from pygame.locals import *
 board = ["bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR",
          "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
          "", "", "", "", "", "", "", "",
-         "", "", "", "", "bP", "", "", "",
-         "", "wR", "", "", "", "", "", "",
+         "", "", "", "", "", "", "", "",
+         "", "", "", "", "", "", "", "",
          "", "", "", "", "", "", "", "",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR"]
@@ -140,6 +140,42 @@ def calculateMoves(board, coord, name, color, dir):
             moves.append(sq)
             i += 1
 
+    # Knight movement
+    if name == "n":
+
+        sq = getBoardFromCoord((coord[0]-1, coord[1] - 2))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0]+1, coord[1] - 2))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] - 1, coord[1] + 2))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] + 1, coord[1] + 2))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] - 2, coord[1] -1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] + 2, coord[1] - 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] - 2, coord[1] + 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        sq = getBoardFromCoord((coord[0] + 2, coord[1] + 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+    # Bishop movement
     if name == "b":
         # Top left
         i = 0
@@ -192,6 +228,55 @@ def calculateMoves(board, coord, name, color, dir):
                 break
             moves.append(sq)
             i += 1
+
+    # Queen movement
+    if name == "q":
+        moves.extend(calculateMoves(board,coord,"r", color, dir))
+        moves.extend(calculateMoves(board,coord, "b", color, dir))
+
+    # King movement
+    if name == "k":
+        # Top left
+        sq = getBoardFromCoord((coord[0] -1, coord[1] - 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Top middle
+        sq = getBoardFromCoord((coord[0], coord[1] - 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Top right
+        sq = getBoardFromCoord((coord[0] + 1, coord[1] - 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Middle right
+        sq = getBoardFromCoord((coord[0] +1, coord[1]))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Bottom right
+        sq = getBoardFromCoord((coord[0] +1, coord[1] + 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Bottom middle
+        sq = getBoardFromCoord((coord[0], coord[1] + 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Bottom left
+        sq = getBoardFromCoord((coord[0] - 1, coord[1] + 1))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+        # Middle left
+        sq = getBoardFromCoord((coord[0] - 1, coord[1]))
+        if sq != None:
+            if sq.type.color != color: moves.append(sq)
+
+
     return moves
 
 
