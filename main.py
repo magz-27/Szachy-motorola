@@ -1,8 +1,11 @@
 import math as pymath
 import pygame
 from pygame.locals import *
+
+import engine
 import util
 from engine import *
+import inspect
 
 pygame.init()
 WIDTH = 1000
@@ -14,7 +17,11 @@ fps = 500
 
 icon_pygame = pygame.image.load('icon.png')
 selectMarker = pygame.image.load("select.png")
-dotMarker = pygame.image.load("dot.png")
+
+dotMarkerLight = pygame.image.load("dotlight.png")
+captureMarkerLight = pygame.image.load("capturelight.png")
+dotMarkerDark = pygame.image.load("dotdark.png")
+captureMarkerDark = pygame.image.load("capturedark.png")
 
 pygame.display.set_icon(icon_pygame)
 
@@ -53,13 +60,16 @@ squareSize = 64
 mousePressed = False
 mouseClick = False
 
-hover: Square = None
-selected: Square = None
+currentPlayer = 'b'
 
-possibleMoves = []
-
-initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
-boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+board = ["bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR",
+         "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
+         "", "", "", "", "", "", "", "",
+         "", "", "", "", "", "", "", "",
+         "", "", "", "", "", "", "", "",
+         "", "", "", "", "", "", "", "",
+         "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
+         "wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR"]
 
 # Convert board from strings to Squares
 for i in range(8):
@@ -69,7 +79,21 @@ for i in range(8):
         else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
 
 
+timer1 = 15 * 60 + 0.99
+timer2 = 15 * 60 + 0.99
+
+hover: Square = None
+selected: Square = None
+
+possibleMoves = []
+
+initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+
+
 def handleMouseLogic():
+    # mousePressed is true if mouse button is currently pressed
+    # mouseClick is true for a single frame when mouse is clicked
     global mouseClick, mousePressed
     if pygame.mouse.get_pressed()[0]:
         if mousePressed:
@@ -94,14 +118,27 @@ def renderBoard():
         if sq.type.name is None: continue
         else: boardSurface.blit(pieceImages[sq.type.getName()+" "+sq.type.getColor()], sq.rect)
 
+    #print("Possible moves: "+str(possibleMoves))
     # Render possible squares to move to
     for m in possibleMoves:
-        boardSurface.blit(dotMarker, m.rect)
+        # Render a different marker if capturing a piece
+        if m.type.name == None:
+            if currentPlayer == "w":
+                boardSurface.blit(dotMarkerLight, m.rect)
+            else:
+                boardSurface.blit(dotMarkerDark, m.rect)
+        else:
+            if currentPlayer == "w":
+                boardSurface.blit(captureMarkerLight, m.rect)
+            else:
+                boardSurface.blit(captureMarkerDark, m.rect)
 
 
 def hoverSquare():
     global hover
     hover = None
+
+    # rounds the squares in the corners
     for sq in board:
         rds = (0, 0, 0, 0)
         if sq.coord == (0, 0):
@@ -117,7 +154,7 @@ def hoverSquare():
             thisMove = None
             for m in possibleMoves:
                 if m.coord == sq.coord: thisMove = m
-            if sq.type.color == playerColor or thisMove != None:
+            if sq.type.color == currentPlayer or thisMove != None:
                 util.DrawRoundedRect(screen, sq.rect, (250,247,240, 60), rds[0], rds[1], rds[2], rds[3])
                 hover = sq
     if hover:
@@ -127,7 +164,7 @@ def hoverSquare():
 
 
 def clickSquare():
-    global board, selected, possibleMoves
+    global board, selected, possibleMoves, currentPlayer
     for sq in board:
         # Draw a select marker
         if sq == selected:
@@ -135,19 +172,22 @@ def clickSquare():
         if mouseClick:
             if sq.rect.collidepoint(mousePos):
                 # Select a piece
-                if sq.type.color == playerColor:
+                if sq.type.color == currentPlayer:
                     possibleMoves = []
                     if sq == selected:
                         selected = None
                     else:
                         selected = sq
-                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, 0)
+                        dir = 1 if currentPlayer == "w" else -1
+                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir)
                     renderBoard()
                 # Move a piece
                 else:
                     if possibleMoves.__contains__(hover) and selected is not None:
                         board = movePiece(board, selected, hover)
                         possibleMoves = []
+                        selected = None
+                        currentPlayer = "w" if currentPlayer == "b" else "b"
                         renderBoard()
 
 
@@ -185,21 +225,33 @@ def drawInit():
 run = True
 
 drawInit()
+
 renderBoard()
 
 while run:
     deltaTime = timer.tick(fps) / 1000
-    timePassed += deltaTime
     mousePos = pygame.mouse.get_pos()
     screen.fill((250, 247, 240))
     handleMouseLogic()
 
+    if (currentPlayer == "w"): timer2 -= deltaTime
+    else: timer1 -= deltaTime
+
     # Timers
-    util.DrawRoundedRect(screen, (430, 25, 110, 50), color_gray, 20, 20, 2, 2)
-    util.DrawText(screen, f'{str(pymath.floor(timePassed)//60).zfill(2)}:{str(pymath.floor(timePassed)%60).zfill(2)}', fnt42, (484,50), (255,255,255), "center",(2,2), 80)
-    util.DrawText(screen, f'TURA', fnt32, (390,60), color_gray, "center")
-    util.DrawRoundedRect(screen, (430, 624, 110, 50), color_checkerwhite, 2, 2, 20, 20)
-    util.DrawText(screen,f'00:00',fnt42, (484, 648), color_gray, "center", (2, 2), 80)
+
+    if (currentPlayer == "w"):
+        util.DrawRoundedRect(screen, (430, 25, 110, 50), color_checkerwhite, 20, 20, 2, 2)
+        util.DrawRoundedRect(screen, (430, 624, 110, 50), color_gray, 2, 2, 20, 20)
+        util.DrawText(screen, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), color_gray, "center", (2, 2), 80)
+        util.DrawText(screen, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), (255, 255, 255), "center", (2, 2), 80)
+    else:
+        util.DrawRoundedRect(screen, (430, 25, 110, 50), color_gray, 20, 20, 2, 2)
+        util.DrawRoundedRect(screen, (430, 624, 110, 50), color_checkerwhite, 2, 2, 20, 20)
+        util.DrawText(screen, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), (255, 255, 255), "center", (2, 2), 80)
+        util.DrawText(screen, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), color_gray, "center", (2, 2), 80)
+
+    if (currentPlayer == "w"): util.DrawText(screen, f'TURA', fnt32, (390,655), color_gray, "center")
+    else: util.DrawText(screen, f'TURA', fnt32, (390,60), color_gray, "center")
 
     # Debug
     # util.DrawText(screen, "click: "+str(mouseClick), fnt16, (screen.get_width()-4, screen.get_height()-122), color_gray, "topright")

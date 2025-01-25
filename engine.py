@@ -1,22 +1,19 @@
 import pygame
 from pygame.locals import *
 
-board = ["bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR",
-         "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
-         "", "", "", "", "", "", "", "",
-         "", "", "", "", "", "", "", "",
-         "", "", "", "", "", "", "", "",
-         "", "", "", "", "", "", "", "",
-         "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
-         "wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR"]
 
-playerColor = 'w'
-
-
-def getBoardFromCoord(coord):
+def getBoardFromCoord(board, coord):
     for sq in board:
         if sq.coord == coord: return sq
     return None
+
+
+def invertBoard(board):
+    newBoard = []
+    for sq in board:
+        newBoard.append(Square(Rect(-64+50+8*64-64*sq.coord[0], -64+90+8*64-64*sq.coord[1], 64, 64), (7-sq.coord[0], 7-sq.coord[1]), sq.type))
+    newBoard.reverse()
+    return newBoard
 
 
 class Square:
@@ -27,6 +24,12 @@ class Square:
 
     def __str__(self):
         return f'{self.type.getColor()} {self.type.getName()}, {self.coord}'
+
+    def __eq__(self, other):
+        if not isinstance(other, Square):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.rect == other.rect and self.coord == other.coord and self.type == other.type
 
 
 class Type:
@@ -54,46 +57,51 @@ class Type:
         elif self.color == "b":
             return "Dark"
 
-    def invertColor(self):
-        if self.color == "w":
+    def invertColor(self, color):
+        if color == "w":
             return "b"
-        elif self.color == "b":
+        elif color == "b":
             return "w"
+
+    def __eq__(self, other):
+        if not isinstance(other, Type):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.color == other.color and self.name == other.name
 
 
 def calculateMoves(board, coord, name, color, dir):
     moves = []
-
     # Pawn movement
     if name == "p":
         # Single
-        sq = getBoardFromCoord((coord[0], coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] - 1*dir))
         if sq != None:
             if sq.type.name is None: moves.append(sq)
 
         # Double
-        sq = getBoardFromCoord((coord[0], coord[1] - 2))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] - 2*dir))
         if sq != None:
-            if sq.type.name is None and coord[1] == 6: moves.append(sq)
+            if sq.type.name is None and ((coord[1] == 6 and dir == 1) or (coord[1] == 1 and dir == -1)): moves.append(sq)
 
         # Left Capture
-        sq = getBoardFromCoord((coord[0] - 1, coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0] - 1*dir, coord[1] - 1*dir))
         if sq != None:
-            if sq.type.invertColor() == color: moves.append(sq)
+            if sq.type.invertColor(sq.type.color) == color: moves.append(sq)
 
         # Right Capture
-        sq = getBoardFromCoord((coord[0] + 1, coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0] + 1*dir, coord[1] - 1*dir))
         if sq != None:
-            if sq.type.invertColor() == color: moves.append(sq)
+            if sq.type.invertColor(sq.type.color) == color: moves.append(sq)
 
     # Rook movement
     if name == "r":
         # Up
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0], coord[1] - i - 1))
+            sq = getBoardFromCoord(board, (coord[0], coord[1] - i - 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -104,9 +112,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Down
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0], coord[1] + i + 1))
+            sq = getBoardFromCoord(board, (coord[0], coord[1] + i + 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -117,9 +125,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Left
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0]-i-1, coord[1]))
+            sq = getBoardFromCoord(board, (coord[0] - i - 1, coord[1]))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -130,9 +138,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Right
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0]+i+1, coord[1]))
+            sq = getBoardFromCoord(board, (coord[0] + i + 1, coord[1]))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -143,35 +151,35 @@ def calculateMoves(board, coord, name, color, dir):
     # Knight movement
     if name == "n":
 
-        sq = getBoardFromCoord((coord[0]-1, coord[1] - 2))
+        sq = getBoardFromCoord(board, (coord[0] - 1, coord[1] - 2))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0]+1, coord[1] - 2))
+        sq = getBoardFromCoord(board, (coord[0] + 1, coord[1] - 2))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] - 1, coord[1] + 2))
+        sq = getBoardFromCoord(board, (coord[0] - 1, coord[1] + 2))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] + 1, coord[1] + 2))
+        sq = getBoardFromCoord(board, (coord[0] + 1, coord[1] + 2))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] - 2, coord[1] -1))
+        sq = getBoardFromCoord(board, (coord[0] - 2, coord[1] - 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] + 2, coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0] + 2, coord[1] - 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] - 2, coord[1] + 1))
+        sq = getBoardFromCoord(board, (coord[0] - 2, coord[1] + 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-        sq = getBoardFromCoord((coord[0] + 2, coord[1] + 1))
+        sq = getBoardFromCoord(board, (coord[0] + 2, coord[1] + 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
@@ -180,9 +188,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Top left
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0]-i-1, coord[1]-i-1))
+            sq = getBoardFromCoord(board, (coord[0] - i - 1, coord[1] - i - 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -193,9 +201,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Top right
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0] + i + 1, coord[1] - i - 1))
+            sq = getBoardFromCoord(board, (coord[0] + i + 1, coord[1] - i - 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -206,9 +214,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Bottom left
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0] - i - 1, coord[1] + i + 1))
+            sq = getBoardFromCoord(board, (coord[0] - i - 1, coord[1] + i + 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -219,9 +227,9 @@ def calculateMoves(board, coord, name, color, dir):
         # Bottom right
         i = 0
         while True:
-            sq = getBoardFromCoord((coord[0] + i + 1, coord[1] + i + 1))
+            sq = getBoardFromCoord(board, (coord[0] + i + 1, coord[1] + i + 1))
             if sq == None: break
-            if sq.type.invertColor() == color:
+            if sq.type.invertColor(sq.type.color) == color:
                 moves.append(sq)
                 break
             if sq.type.color == color:
@@ -237,45 +245,44 @@ def calculateMoves(board, coord, name, color, dir):
     # King movement
     if name == "k":
         # Top left
-        sq = getBoardFromCoord((coord[0] -1, coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0] - 1, coord[1] - 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Top middle
-        sq = getBoardFromCoord((coord[0], coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] - 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Top right
-        sq = getBoardFromCoord((coord[0] + 1, coord[1] - 1))
+        sq = getBoardFromCoord(board, (coord[0] + 1, coord[1] - 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Middle right
-        sq = getBoardFromCoord((coord[0] +1, coord[1]))
+        sq = getBoardFromCoord(board, (coord[0] + 1, coord[1]))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Bottom right
-        sq = getBoardFromCoord((coord[0] +1, coord[1] + 1))
+        sq = getBoardFromCoord(board, (coord[0] + 1, coord[1] + 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Bottom middle
-        sq = getBoardFromCoord((coord[0], coord[1] + 1))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] + 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Bottom left
-        sq = getBoardFromCoord((coord[0] - 1, coord[1] + 1))
+        sq = getBoardFromCoord(board, (coord[0] - 1, coord[1] + 1))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
         # Middle left
-        sq = getBoardFromCoord((coord[0] - 1, coord[1]))
+        sq = getBoardFromCoord(board, (coord[0] - 1, coord[1]))
         if sq != None:
             if sq.type.color != color: moves.append(sq)
-
 
     return moves
 
