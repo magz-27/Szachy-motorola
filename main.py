@@ -15,13 +15,13 @@ pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
 fps = 500
 
-icon_pygame = pygame.image.load('icon.png')
-selectMarker = pygame.image.load("select.png")
+icon_pygame = pygame.image.load('graphics/icon.png')
+selectMarker = pygame.image.load("graphics/select.png")
 
-dotMarkerLight = pygame.image.load("dotlight.png")
-captureMarkerLight = pygame.image.load("capturelight.png")
-dotMarkerDark = pygame.image.load("dotdark.png")
-captureMarkerDark = pygame.image.load("capturedark.png")
+dotMarkerLight = pygame.image.load("graphics/dotlight.png")
+captureMarkerLight = pygame.image.load("graphics/capturelight.png")
+dotMarkerDark = pygame.image.load("graphics/dotdark.png")
+captureMarkerDark = pygame.image.load("graphics/capturedark.png")
 
 pygame.display.set_icon(icon_pygame)
 
