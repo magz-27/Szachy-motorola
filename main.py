@@ -60,16 +60,16 @@ squareSize = 64
 mousePressed = False
 mouseClick = False
 
-currentPlayer = 'b'
+currentPlayer = 'w'
 
-board = ["bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR",
+board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
          "", "", "", "", "", "", "", "",
          "", "", "", "", "", "", "", "",
          "", "", "", "", "", "", "", "",
          "", "", "", "", "", "", "", "",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
-         "wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR"]
+         "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 
 # Convert board from strings to Squares
 for i in range(8):
@@ -85,7 +85,10 @@ timer2 = 15 * 60 + 0.99
 hover: Square = None
 selected: Square = None
 
+allMoves = []
 possibleMoves = []
+isCheck = None
+checkMate = None
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -111,6 +114,15 @@ def renderBoard():
     # Clear the board
     boardSurface.fill((0, 0, 0, 0))
 
+    #draw a colored square to show the last move
+    if len(allMoves) > 0:
+        m = allMoves[len(allMoves)-1]
+        drawColorSquare(boardSurface, m[0].coord, (255, 235, 85, 40))
+        drawColorSquare(boardSurface, m[1].coord, (255, 235, 85, 40))
+
+    # draw a red square if check
+    if (isCheck): drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
+
     # Render pieces
     for sq in board:
         if drawCoords:
@@ -118,7 +130,6 @@ def renderBoard():
         if sq.type.name is None: continue
         else: boardSurface.blit(pieceImages[sq.type.getName()+" "+sq.type.getColor()], sq.rect)
 
-    #print("Possible moves: "+str(possibleMoves))
     # Render possible squares to move to
     for m in possibleMoves:
         # Render a different marker if capturing a piece
@@ -138,24 +149,13 @@ def hoverSquare():
     global hover
     hover = None
 
-    # rounds the squares in the corners
     for sq in board:
-        rds = (0, 0, 0, 0)
-        if sq.coord == (0, 0):
-            rds = (16, 0, 0, 0)
-        elif sq.coord == (7, 0):
-            rds = (0, 16, 0, 0)
-        elif sq.coord == (0, 7):
-            rds = (0, 0, 16, 0)
-        elif sq.coord == (7, 7):
-            rds = (0, 0, 0, 16)
-
         if sq.rect.collidepoint(mousePos):
             thisMove = None
             for m in possibleMoves:
                 if m.coord == sq.coord: thisMove = m
             if sq.type.color == currentPlayer or thisMove != None:
-                util.DrawRoundedRect(screen, sq.rect, (250,247,240, 60), rds[0], rds[1], rds[2], rds[3])
+                drawColorSquare(screen, sq.coord, (250, 247, 240, 60))
                 hover = sq
     if hover:
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
@@ -164,7 +164,7 @@ def hoverSquare():
 
 
 def clickSquare():
-    global board, selected, possibleMoves, currentPlayer
+    global board, selected, possibleMoves, currentPlayer, isCheck, checkMate
     for sq in board:
         # Draw a select marker
         if sq == selected:
@@ -179,17 +179,36 @@ def clickSquare():
                     else:
                         selected = sq
                         dir = 1 if currentPlayer == "w" else -1
-                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir)
+                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, True)
                     renderBoard()
                 # Move a piece
                 else:
                     if possibleMoves.__contains__(hover) and selected is not None:
+                        allMoves.append((selected, hover))
                         board = movePiece(board, selected, hover)
                         possibleMoves = []
                         selected = None
                         currentPlayer = "w" if currentPlayer == "b" else "b"
+                        dir = 1 if currentPlayer == "w" else -1
+                        #checkmate
+                        isCheck = check(board)
+                        print(getAllMoves(board, currentPlayer, dir, True))
+                        if getAllMoves(board, currentPlayer, dir, True) == []: checkMate = currentPlayer
                         renderBoard()
 
+
+def drawColorSquare(surface, coord, color):
+    rds = (0, 0, 0, 0)
+    if coord == (0, 0):
+        rds = (16, 0, 0, 0)
+    elif coord == (7, 0):
+        rds = (0, 16, 0, 0)
+    elif coord == (0, 7):
+        rds = (0, 0, 16, 0)
+    elif coord == (7, 7):
+        rds = (0, 0, 0, 16)
+
+    util.DrawRoundedRect(surface, Rect(boardCoords[0]+coord[0]*squareSize, boardCoords[1]+coord[1]*squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
 
 def drawInit():
     global initSurface
@@ -234,12 +253,11 @@ while run:
     screen.fill((250, 247, 240))
     handleMouseLogic()
 
-    if (currentPlayer == "w"): timer2 -= deltaTime
+    if currentPlayer == "w": timer2 -= deltaTime
     else: timer1 -= deltaTime
 
     # Timers
-
-    if (currentPlayer == "w"):
+    if currentPlayer == "w":
         util.DrawRoundedRect(screen, (430, 25, 110, 50), color_checkerwhite, 20, 20, 2, 2)
         util.DrawRoundedRect(screen, (430, 624, 110, 50), color_gray, 2, 2, 20, 20)
         util.DrawText(screen, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), color_gray, "center", (2, 2), 80)
@@ -250,8 +268,12 @@ while run:
         util.DrawText(screen, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), (255, 255, 255), "center", (2, 2), 80)
         util.DrawText(screen, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), color_gray, "center", (2, 2), 80)
 
-    if (currentPlayer == "w"): util.DrawText(screen, f'TURA', fnt32, (390,655), color_gray, "center")
+    if currentPlayer == "w": util.DrawText(screen, f'TURA', fnt32, (390, 655), color_gray, "center")
     else: util.DrawText(screen, f'TURA', fnt32, (390,60), color_gray, "center")
+
+    if checkMate != None:
+        if checkMate == "w": util.DrawText(screen, "Checkmate White!", fnt42, (screen.get_width()-100, screen.get_height()-500), color_gray, "topright")
+        if checkMate == "b": util.DrawText(screen, "Checkmate Black!", fnt42, (screen.get_width()-100, screen.get_height()-500), color_gray, "topright")
 
     # Debug
     # util.DrawText(screen, "click: "+str(mouseClick), fnt16, (screen.get_width()-4, screen.get_height()-122), color_gray, "topright")

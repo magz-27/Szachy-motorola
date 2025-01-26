@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import *
+import copy
 
 
 def getBoardFromCoord(board, coord):
@@ -70,8 +71,30 @@ class Type:
         return self.color == other.color and self.name == other.name
 
 
-def calculateMoves(board, coord, name, color, dir):
+def getAllMoves(board, color, dir, actual=False):
     moves = []
+    for sq in board:
+        if sq.type.color == color:
+            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, actual))
+    return moves
+
+def check(board):
+    light = getAllMoves(board, 'w', 1)
+    dark = getAllMoves(board, 'b', -1)
+
+    for m in light:
+        if m.type.name == "k":
+            return m
+    for m in dark:
+        if m.type.name == "k":
+            return m
+    return None
+
+
+
+def calculateMoves(board, coord, name, color, dir, actual=False):
+    moves = []
+
     # Pawn movement
     if name == "p":
         # Single
@@ -284,10 +307,20 @@ def calculateMoves(board, coord, name, color, dir):
         if sq != None:
             if sq.type.color != color: moves.append(sq)
 
-    return moves
+    newMoves = []
+    if actual:
+        for m in moves:
+            b = movePiece(board, getBoardFromCoord(board, coord), m)
+            ch = check(b)
+            if ch == None: newMoves.append(m)
+            else:
+                if ch.type.color != color: newMoves.append(m)
+    else: newMoves = moves
+    return newMoves
 
 
-def movePiece(board, sq1, sq2):
+def movePiece(board1, sq1, sq2):
+    board = [Square(i.rect, i.coord, i.type) for i in board1]
     for i, sq in enumerate(board):
         if sq == sq1:
             board[i] = Square(sq1.rect, sq1.coord, Type(None, None))
