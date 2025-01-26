@@ -1,6 +1,5 @@
 import pygame
 from pygame.locals import *
-import copy
 
 
 def getBoardFromCoord(board, coord):
@@ -71,12 +70,13 @@ class Type:
         return self.color == other.color and self.name == other.name
 
 
-def getAllMoves(board, color, dir, actual=False):
+def getAllMoves(board, color, direction, actual=False):
     moves = []
     for sq in board:
         if sq.type.color == color:
-            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, actual))
+            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, actual))
     return moves
+
 
 def check(board):
     light = getAllMoves(board, 'w', 1)
@@ -91,29 +91,28 @@ def check(board):
     return None
 
 
-
-def calculateMoves(board, coord, name, color, dir, actual=False):
+def calculateMoves(board, coord, name, color, direction, actual=False):
     moves = []
 
     # Pawn movement
     if name == "p":
         # Single
-        sq = getBoardFromCoord(board, (coord[0], coord[1] - 1*dir))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] - 1 * direction))
         if sq != None:
             if sq.type.name is None: moves.append(sq)
 
         # Double
-        sq = getBoardFromCoord(board, (coord[0], coord[1] - 2*dir))
+        sq = getBoardFromCoord(board, (coord[0], coord[1] - 2 * direction))
         if sq != None:
-            if sq.type.name is None and ((coord[1] == 6 and dir == 1) or (coord[1] == 1 and dir == -1)): moves.append(sq)
+            if sq.type.name is None and ((coord[1] == 6 and direction == 1) or (coord[1] == 1 and direction == -1)): moves.append(sq)
 
         # Left Capture
-        sq = getBoardFromCoord(board, (coord[0] - 1*dir, coord[1] - 1*dir))
+        sq = getBoardFromCoord(board, (coord[0] - 1 * direction, coord[1] - 1 * direction))
         if sq != None:
             if sq.type.invertColor(sq.type.color) == color: moves.append(sq)
 
         # Right Capture
-        sq = getBoardFromCoord(board, (coord[0] + 1*dir, coord[1] - 1*dir))
+        sq = getBoardFromCoord(board, (coord[0] + 1 * direction, coord[1] - 1 * direction))
         if sq != None:
             if sq.type.invertColor(sq.type.color) == color: moves.append(sq)
 
@@ -262,8 +261,8 @@ def calculateMoves(board, coord, name, color, dir, actual=False):
 
     # Queen movement
     if name == "q":
-        moves.extend(calculateMoves(board,coord,"r", color, dir))
-        moves.extend(calculateMoves(board,coord, "b", color, dir))
+        moves.extend(calculateMoves(board, coord,"r", color, direction))
+        moves.extend(calculateMoves(board, coord, "b", color, direction))
 
     # King movement
     if name == "k":

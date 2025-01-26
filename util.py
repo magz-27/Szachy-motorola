@@ -3,7 +3,6 @@ from pygame import *
 
 pygame.init()
 
-# Draws a rounded rectangle. Spent a whole day writing this.
 def DrawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
     rect = Rect(rect)
     color = Color(*color)

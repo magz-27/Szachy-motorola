@@ -1,11 +1,8 @@
 import math as pymath
 import pygame
 from pygame.locals import *
-
-import engine
 import util
 from engine import *
-import inspect
 
 pygame.init()
 WIDTH = 1000
@@ -28,6 +25,7 @@ pygame.display.set_icon(icon_pygame)
 fnt56 = pygame.font.Font("font.otf", 56)
 fnt42 = pygame.font.Font("font.otf", 42)
 fnt32 = pygame.font.Font("font.otf", 32)
+fnt26 = pygame.font.Font("font.otf", 26)
 fnt16 = pygame.font.Font("font.otf", 16)
 fnt12 = pygame.font.Font("font.otf", 12)
 
@@ -46,6 +44,7 @@ pieceImages = {"Pawn Light": pygame.image.load('chessPieces/Pawn Light.png').con
         'chessPieces/King Dark.png').convert_alpha(),
                }
 
+
 color_gray = (74, 73, 71)
 color_checkerwhite = (231, 225, 209)
 color_checkerblack = (194, 189, 174)
@@ -59,8 +58,23 @@ boardCoords = (50, 90)
 squareSize = 64
 mousePressed = False
 mouseClick = False
+player1 = "Gracz 1"
+player2 = "Komputer"
+hover: Square = None
+selected: Square = None
+timer1 = 15 * 60 + 0.99
+timer2 = 15 * 60 + 0.99
 
 currentPlayer = 'w'
+allMoves = []
+possibleMoves = []
+isCheck = None
+checkMate = None
+isGameOver = False
+
+initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+
 
 board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
@@ -77,21 +91,6 @@ for i in range(8):
         current = j+i*8
         if board[current] == "": board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j, i), Type(None, None))
         else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
-
-
-timer1 = 15 * 60 + 0.99
-timer2 = 15 * 60 + 0.99
-
-hover: Square = None
-selected: Square = None
-
-allMoves = []
-possibleMoves = []
-isCheck = None
-checkMate = None
-
-initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
-boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 
 
 def handleMouseLogic():
@@ -114,14 +113,14 @@ def renderBoard():
     # Clear the board
     boardSurface.fill((0, 0, 0, 0))
 
-    #draw a colored square to show the last move
+    # draw a colored square to show the last move
     if len(allMoves) > 0:
         m = allMoves[len(allMoves)-1]
         drawColorSquare(boardSurface, m[0].coord, (255, 235, 85, 40))
         drawColorSquare(boardSurface, m[1].coord, (255, 235, 85, 40))
 
     # draw a red square if check
-    if (isCheck): drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
+    if isCheck: drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
 
     # Render pieces
     for sq in board:
@@ -129,6 +128,9 @@ def renderBoard():
             util.DrawText(boardSurface, str(sq.coord), fnt12, (sq.rect[0], sq.rect[1], squareSize, squareSize), color_gray)
         if sq.type.name is None: continue
         else: boardSurface.blit(pieceImages[sq.type.getName()+" "+sq.type.getColor()], sq.rect)
+
+    # make the board darker if game is over
+    if isGameOver: util.DrawRoundedRect(boardSurface, (boardCoords[0], boardCoords[1], 64*8, 64*8), (47,45,41,40), 16, 16, 16, 16)
 
     # Render possible squares to move to
     for m in possibleMoves:
@@ -164,7 +166,7 @@ def hoverSquare():
 
 
 def clickSquare():
-    global board, selected, possibleMoves, currentPlayer, isCheck, checkMate
+    global board, selected, possibleMoves, currentPlayer, isCheck, checkMate, isGameOver
     for sq in board:
         # Draw a select marker
         if sq == selected:
@@ -188,12 +190,19 @@ def clickSquare():
                         board = movePiece(board, selected, hover)
                         possibleMoves = []
                         selected = None
+
                         currentPlayer = "w" if currentPlayer == "b" else "b"
                         dir = 1 if currentPlayer == "w" else -1
-                        #checkmate
+
+                        #check
                         isCheck = check(board)
+
+                        #checkmate
                         print(getAllMoves(board, currentPlayer, dir, True))
-                        if getAllMoves(board, currentPlayer, dir, True) == []: checkMate = currentPlayer
+                        if getAllMoves(board, currentPlayer, dir, True) == []:
+                            checkMate = currentPlayer
+                            isGameOver = True
+                            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
                         renderBoard()
 
 
@@ -210,13 +219,15 @@ def drawColorSquare(surface, coord, color):
 
     util.DrawRoundedRect(surface, Rect(boardCoords[0]+coord[0]*squareSize, boardCoords[1]+coord[1]*squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
 
+
 def drawInit():
     global initSurface
-    boardborder = util.DrawRoundedRect(initSurface,(boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
-    playername1 = util.DrawText(initSurface, "Komputer", fnt56, (60, 20), color_gray)
-    playername2 = util.DrawText(initSurface, "Gracz 1", fnt56, (60, 615), color_gray)
 
-    #Draw the board squares
+    util.DrawRoundedRect(initSurface,(boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
+    util.DrawText(initSurface, player1, fnt56, (60, 615), color_gray)
+    util.DrawText(initSurface, player2, fnt56, (60, 20), color_gray)
+
+    # Draw the board squares
     for sq in board:
         sq.rect.w = squareSize
         sq.rect.h = squareSize
@@ -253,8 +264,9 @@ while run:
     screen.fill((250, 247, 240))
     handleMouseLogic()
 
-    if currentPlayer == "w": timer2 -= deltaTime
-    else: timer1 -= deltaTime
+    if not isGameOver:
+        if currentPlayer == "w": timer2 -= deltaTime
+        else: timer1 -= deltaTime
 
     # Timers
     if currentPlayer == "w":
@@ -272,12 +284,15 @@ while run:
     else: util.DrawText(screen, f'TURA', fnt32, (390,60), color_gray, "center")
 
     if checkMate != None:
-        if checkMate == "w": util.DrawText(screen, "Checkmate White!", fnt42, (screen.get_width()-100, screen.get_height()-500), color_gray, "topright")
-        if checkMate == "b": util.DrawText(screen, "Checkmate Black!", fnt42, (screen.get_width()-100, screen.get_height()-500), color_gray, "topright")
+        if checkMate == "w":
+            util.DrawText(screen, "Szach mat!", fnt56, (screen.get_width() - 220, screen.get_height() - 590), color_gray, "center")
+            util.DrawText(screen, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 220, screen.get_height() - 550), color_gray, "center")
+
+        if checkMate == "b":
+            util.DrawText(screen, "Szach mat!", fnt56, (screen.get_width() - 220, screen.get_height() - 590), color_gray, "center")
+            util.DrawText(screen, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 220, screen.get_height() - 550), color_gray, "center")
 
     # Debug
-    # util.DrawText(screen, "click: "+str(mouseClick), fnt16, (screen.get_width()-4, screen.get_height()-122), color_gray, "topright")
-    # util.DrawText(screen, "press: "+str(mousePressed), fnt16, (screen.get_width()-4, screen.get_height()-102), color_gray, "topright")
     util.DrawText(screen, "Selected: "+str(selected), fnt16, (screen.get_width()-4, screen.get_height()-82), color_gray, "topright")
     util.DrawText(screen, "Hover: "+str(hover), fnt16, (screen.get_width()-4, screen.get_height()-62), color_gray, "topright")
     util.DrawText(screen, "Fps: "+str(round(timer.get_fps())), fnt16, (screen.get_width()-4, screen.get_height()-42),  color_gray,"topright")
@@ -286,8 +301,9 @@ while run:
     # Board
     screen.blit(initSurface, (0,0))
     screen.blit(boardSurface, (0,0))
-    hoverSquare()
-    clickSquare()
+    if not isGameOver:
+        hoverSquare()
+        clickSquare()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
