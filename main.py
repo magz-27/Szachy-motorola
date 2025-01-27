@@ -10,7 +10,7 @@ HEIGHT = 700
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
-fps = 500
+fps = 60
 
 icon_pygame = pygame.image.load('graphics/icon.png')
 selectMarker = pygame.image.load("graphics/select.png")
