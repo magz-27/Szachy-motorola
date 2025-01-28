@@ -190,6 +190,8 @@ def renderBoard():
     # draw a red square if check
     if isCheck: drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
 
+    if isCheck and not isGameOver: util.drawText(boardSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,
+                  "center")
     # Render pieces
     for sq in board:
         if drawCoords:
