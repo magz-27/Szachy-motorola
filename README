@@ -1,0 +1,2 @@
+Exe nie dziala bo windows defender wykrywa wirusa
+Wlacza sie uruchamiając main.py, trzeba miec zainstalowanego pygame (pip install pygame)
