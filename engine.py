@@ -85,12 +85,18 @@ def check(board):
     light = getAllMoves(board, 'w', 1)
     dark = getAllMoves(board, 'b', -1)
 
+    l = None
+    d = None
+
     for m in light:
         if m.type.name == "k":
-            return m
+            l = m
     for m in dark:
         if m.type.name == "k":
-            return m
+            d = m
+    if l and d: return l,d
+    elif l: return l
+    elif d: return d
     return None
 
 
@@ -316,7 +322,8 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
             ch = check(b)
             if ch == None: newMoves.append(m)
             else:
-                if ch.type.color != color: newMoves.append(m)
+                if type(ch) is not tuple:
+                    if ch.type.color != color: newMoves.append(m)
     else: newMoves = moves
     return newMoves
 
