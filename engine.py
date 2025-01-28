@@ -25,6 +25,9 @@ class Square:
     def __str__(self):
         return f'{self.type.getColor()} {self.type.getName()}, {self.coord}'
 
+    def getName(self):
+        return f'{self.type.getColor()} {self.type.getName()}, {self.coord}'
+
     def __eq__(self, other):
         if not isinstance(other, Square):
             # don't attempt to compare against unrelated types

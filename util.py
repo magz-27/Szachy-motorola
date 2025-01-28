@@ -3,7 +3,7 @@ from pygame import *
 
 pygame.init()
 
-def DrawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
+def drawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
     rect = Rect(rect)
     color = Color(*color)
     alpha = color.a
@@ -68,7 +68,7 @@ def DrawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, rad
     return Rect(pos[0], pos[1], rect.width, rect.height), rectangle
 
 
-def DrawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(0,0), shadowAlpha=100):
+def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(0, 0), shadowAlpha=100):
     # draw the shadow under text
     if shadowRect != (0,0):
         text_surface = fnt.render(text, True, color)
