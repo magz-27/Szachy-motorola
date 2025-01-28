@@ -11,7 +11,7 @@ HEIGHT = 700
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
-fps = 240
+fps = 60
 
 icon_pygame = pygame.image.load('graphics/icon.png')
 selectMarker = pygame.image.load("graphics/select.png")
@@ -23,12 +23,12 @@ captureMarkerDark = pygame.image.load("graphics/capturedark.png")
 
 pygame.display.set_icon(icon_pygame)
 
-fnt56 = pygame.font.Font("font.otf", 56)
-fnt42 = pygame.font.Font("font.otf", 42)
-fnt32 = pygame.font.Font("font.otf", 32)
-fnt26 = pygame.font.Font("font.otf", 26)
-fnt16 = pygame.font.Font("font.otf", 16)
-fnt12 = pygame.font.Font("font.otf", 12)
+fnt56 = pygame.font.Font("font.ttf", 56)
+fnt42 = pygame.font.Font("font.ttf", 42)
+fnt32 = pygame.font.Font("font.ttf", 32)
+fnt26 = pygame.font.Font("font.ttf", 26)
+fnt16 = pygame.font.Font("font.ttf", 16)
+fnt12 = pygame.font.Font("font.ttf", 12)
 
 
 pieceImages = {"Pawn Light": pygame.image.load('chessPieces/Pawn Light.png').convert_alpha(), "Rook Light": pygame.image.load(
