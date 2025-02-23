@@ -105,9 +105,16 @@ if game_mode == "quit":
 elif game_mode == "computer":
     player1 = "Player 1"
     player2 = "Computer"
-elif game_mode == "friend":
+    vs_computer = True
+elif game_mode == "online":
+    player1 = "Player 1"
+    player2 = "Online Player"
+    vs_computer = False
+elif game_mode == "player":
     player1 = "Player 1"
     player2 = "Player 2"
+    vs_computer = False
+
 
 
 for i in range(8):
