@@ -3,6 +3,9 @@ import pygame
 from pygame.locals import *
 import util
 from engine import *
+import menu
+
+
 
 
 pygame.init()
@@ -93,7 +96,20 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 
 
-# Convert board from strings to Squares
+
+game_mode = menu.show_menu(screen)
+
+if game_mode == "quit":
+    pygame.quit()
+    exit()
+elif game_mode == "computer":
+    player1 = "Player 1"
+    player2 = "Computer"
+elif game_mode == "friend":
+    player1 = "Player 1"
+    player2 = "Player 2"
+
+
 for i in range(8):
     for j in range(8):
         current = j+i*8
