@@ -268,6 +268,8 @@ def clickSquare():
                         drawTimers()
                         drawNotes()
 
+                        print(minimax(board, currentPlayer, 3))
+
                         #check
                         isCheck = check(board)
 

@@ -1,12 +1,12 @@
 import math
-from engine import movePiece, calculateMoves, getAllMoves, check, coordToBoardIndex
+from engine import movePiece, calculateMoves, getAllMoves, check, getBoardFromCoord
 
 def scoreBlack(board, currentPlayer = "b"):
     # parameters
     VALUE_WEIGHT = 4.0
     DISTANCE_FROM_CENTER_WEIGHT = 1.0
     KING_SAFETY_WEIGHT = 0.5
-    CONTROL_WEIGHT = 2.0
+    CONTROL_WEIGHT = 0.05
 
     # check for checkmate and stalemate
     dir = 1 if currentPlayer == "w" else -1
@@ -64,27 +64,26 @@ def scoreBlack(board, currentPlayer = "b"):
     kingPosition = (0,0)
     for piece in pieceSquares:
         if piece.type.name == "k" and piece.type.color == currentPlayer:
-            kingPosition = piece.coord
-            kingPosition[0] -= 1
-            kingPosition[1] -= 1
+            kingPosition = (piece.coord[0] - 1, piece.coord[1] - 1)
             break
 
     # iterate over neighbouring squares:
     for i in range(3):
         for j in range(3):
             checkedPosition = (kingPosition[0] + i, kingPosition[1] + j)
-            index = coordToBoardIndex(checkedPosition)
-            if checkedPosition[0] > 7 or checkedPosition[0] < 0 or checkedPosition[1] > 7 or checkedPosition[0] < 0:
+            checkedSquare = getBoardFromCoord(board,checkedPosition)
+            if checkedSquare == None:
                 kingSafety += 0.11
                 continue
 
-            if board[index].type.color == "w":
+            if checkedSquare.type.color == "w":
                 kingSafety += 0.11
 
     # score based on board control:
     controlScore = 0
     for move in avaibleMoves:
         controlScore += 10 - math.dist(move.coord, (3.5, 3.5))
+    controlScore / 64
 
 
     return VALUE_WEIGHT * pieceValues + DISTANCE_FROM_CENTER_WEIGHT * distanceScore + KING_SAFETY_WEIGHT * kingSafety + CONTROL_WEIGHT * controlScore

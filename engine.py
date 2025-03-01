@@ -3,9 +3,11 @@ from pygame.locals import *
 
 
 def getBoardFromCoord(board, coord):
-    for sq in board:
-        if sq.coord == coord: return sq
-    return None
+    if coord[0] > 7 or coord[0] < 0 or coord[1] > 7 or coord[1] < 0:
+        return None
+    index = coord[0] + coord[1] * 8
+    return board[index]
+   
 
 
 def invertBoard(board):
@@ -326,9 +328,7 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
                     if ch.type.color != color: newMoves.append(m)
     else: newMoves = moves
     return newMoves
-
-def coordToBoardIndex(coord: tuple):
-    return coord[0] + coord[1] * 8
+    
 
 def movePiece(sourceBoard, sq1, sq2):
     board = [Square(i.rect, i.coord, i.type) for i in sourceBoard]
@@ -336,10 +336,10 @@ def movePiece(sourceBoard, sq1, sq2):
     startPosition = sq1.coord if isinstance(sq1, Square) else sq1 
     endPosition = sq2.coord if isinstance(sq1, Square) else sq2 
 
-    startSquare = board[coordToBoardIndex(startPosition)]
+    startSquare = getBoardFromCoord(board, startPosition)
 
     # move a piece to its destination
-    board[coordToBoardIndex(endPosition)].type = startSquare.type
+    getBoardFromCoord(board, endPosition).type = startSquare.type
     startSquare.type = Type(None, None)
 
     return board
