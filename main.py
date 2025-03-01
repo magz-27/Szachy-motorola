@@ -2,10 +2,11 @@ import math as pymath
 import pygame
 from pygame.locals import *
 import util
+
 from engine import *
+
+from minimax import *
 import menu
-
-
 
 
 pygame.init()
@@ -79,6 +80,7 @@ isCheck = None
 checkMate = None
 isGameOver = False
 useHandCursor = False
+minimaxSearchDepth = 1
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
