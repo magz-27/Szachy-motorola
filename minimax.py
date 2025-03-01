@@ -88,7 +88,7 @@ def scoreBlack(board, currentPlayer = "b"):
 
     return VALUE_WEIGHT * pieceValues + DISTANCE_FROM_CENTER_WEIGHT * distanceScore + KING_SAFETY_WEIGHT * kingSafety + CONTROL_WEIGHT * controlScore
 
-def minimax(board, color, recursionsLeft):
+def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
     if (recursionsLeft == 0):
         return [scoreBlack(board), None]
     
@@ -111,7 +111,9 @@ def minimax(board, color, recursionsLeft):
         maxValue = -math.inf
         
         for move in moves:
-            value = minimax(movePiece(board, move[0], move[1]), 'w', recursionsLeft - 1)[0]
+            value = minimax(movePiece(board, move[0], move[1]), 'w', recursionsLeft - 1, maxValue)[0]
+            if (alphaBetaLimit != None and value > alphaBetaLimit):
+                return [value, move]
             if (value > maxValue):
                 maxValue = value
                 bestMove = move
@@ -123,7 +125,9 @@ def minimax(board, color, recursionsLeft):
         minValue = math.inf
 
         for move in moves:
-            value = minimax(movePiece(board, move[0], move[1]), 'b', recursionsLeft - 1)[0]
+            value = minimax(movePiece(board, move[0], move[1]), 'b', recursionsLeft - 1, minValue)[0]
+            if (alphaBetaLimit != None and value < alphaBetaLimit):
+                return [value, move]
             if (value < minValue):
                 minValue = value
                 bestMove = move
