@@ -327,12 +327,19 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
     else: newMoves = moves
     return newMoves
 
+def coordToBoardIndex(coord: tuple):
+    return coord[0] + coord[1] * 8
 
-def movePiece(board1, sq1, sq2):
-    board = [Square(i.rect, i.coord, i.type) for i in board1]
-    for i, sq in enumerate(board):
-        if sq == sq1:
-            board[i] = Square(sq1.rect, sq1.coord, Type(None, None))
-        elif sq == sq2:
-            board[i] = Square(sq2.rect, sq2.coord, sq1.type)
+def movePiece(sourceBoard, sq1, sq2):
+    board = [Square(i.rect, i.coord, i.type) for i in sourceBoard]
+
+    startPosition = sq1.coord if isinstance(sq1, Square) else sq1 
+    endPosition = sq2.coord if isinstance(sq1, Square) else sq2 
+
+    startSquare = board[coordToBoardIndex(startPosition)]
+
+    # move a piece to its destination
+    board[coordToBoardIndex(endPosition)].type = startSquare.type
+    startSquare.type = Type(None, None)
+
     return board
