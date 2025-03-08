@@ -1,6 +1,7 @@
 import math as pymath
 import pygame
 from pygame.locals import *
+import threading
 import util
 
 from engine import *
@@ -74,13 +75,17 @@ actualTimer1 = 0
 actualTimer2 = 0
 
 currentPlayer = 'w'
+computerColor = "b"
 allMoves = []
 possibleMoves = []
 isCheck = None
 checkMate = None
 isGameOver = False
 useHandCursor = False
-minimaxSearchDepth = 1
+
+minimaxSearchDepth = 3
+awaitingMove = False
+minimaxThread = None
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -126,6 +131,16 @@ for i in range(8):
         else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
 
 initBoard = [i for i in board]
+
+def handleMinimax(board, color, depth):
+    global awaitingMove
+
+    move = minimax(board, color, depth)[1]
+    startSquare = getBoardFromCoord(board, move[0])
+    endSquare = getBoardFromCoord(board, move[1])
+    handlePieceMove(startSquare, endSquare)
+
+    awaitingMove = False
 
 currentButtons = []
 
@@ -256,14 +271,37 @@ def hoverSquare():
     if hover:
         useHandCursor = True
 
+def handlePieceMove(startSquare, endSquare):
+    global board, possibleMoves, currentPlayer, checkMate, isCheck, selected, timePassedThisMove
+    allMoves.append((startSquare, endSquare, timePassedThisMove))
+    timePassedThisMove = 0
+    board = movePiece(board, startSquare, endSquare)
+    possibleMoves = []
+    selected = None
+
+    currentPlayer = "w" if currentPlayer == "b" else "b"
+    dir = 1 if currentPlayer == "w" else -1
+    drawTimers()
+    drawNotes()
+
+    #check
+    isCheck = check(board)
+
+    #checkmate
+    #print(getAllMoves(board, currentPlayer, dir, True))
+    if getAllMoves(board, currentPlayer, dir, True) == []:
+        checkMate = currentPlayer
+        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+    renderBoard()
+
 
 def clickSquare():
-    global board, selected, possibleMoves, currentPlayer, isCheck, checkMate, isGameOver, timePassedThisMove
+    global awaitingMove, board, selected, possibleMoves, currentPlayer, isCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
     for sq in board:
         # Draw a select marker
         if sq == selected:
             screen.blit(selectMarker, sq.rect)
-        if mouseDown:
+        if mouseDown and not awaitingMove:
             if sq.rect.collidepoint(mousePos):
                 # Select a piece
                 if sq.type.color == currentPlayer:
@@ -278,26 +316,16 @@ def clickSquare():
                 # Move a piece
                 else:
                     if possibleMoves.__contains__(hover) and selected is not None:
-                        allMoves.append((selected, hover, timePassedThisMove))
-                        timePassedThisMove = 0
-                        board = movePiece(board, selected, hover)
-                        possibleMoves = []
-                        selected = None
+                        handlePieceMove(selected, hover)
 
-                        currentPlayer = "w" if currentPlayer == "b" else "b"
-                        dir = 1 if currentPlayer == "w" else -1
-                        drawTimers()
-                        drawNotes()
-
-                        #check
-                        isCheck = check(board)
-
-                        #checkmate
-                        #print(getAllMoves(board, currentPlayer, dir, True))
-                        if getAllMoves(board, currentPlayer, dir, True) == []:
-                            checkMate = currentPlayer
-                            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-                        renderBoard()
+                        if game_mode == "computer":
+                            awaitingMove = True
+                            minimaxThread = threading.Thread(
+                                target=handleMinimax,
+                                name="minimax",
+                                args=(board, currentPlayer, minimaxSearchDepth)
+                            )
+                            minimaxThread.start()
 
 
 def drawColorSquare(surface, coord, color):
@@ -333,7 +361,11 @@ def drawInit():
 
     # Buttons
     def reset():
-        global board, initBoard, allMoves, timer1, timer2, currentPlayer, isCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
+        global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, isCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
+
+        if awaitingMove:
+            return
+
         allMoves = []
         board = initBoard
         timer1 = 15 * 60 + 0.95
@@ -355,8 +387,14 @@ def drawInit():
         drawNotes()
         renderBoard()
 
-    def undo():
-        global allMoves, board, isCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves
+    def undo(final = False):
+        global allMoves, awaitingMove, board, isCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves
+
+        if awaitingMove:
+            return
+        
+
+
         if len(allMoves) != 0:
             m = allMoves[len(allMoves)-1]
             for i, sq in enumerate(board):
@@ -386,6 +424,10 @@ def drawInit():
             drawTimers()
             drawNotes()
             renderBoard()
+
+            # Undo computer's and own move
+            if game_mode == "computer" and not final:
+                undo(True)
 
     b = Button(Rect(605, 250, 115, 45), "Cofnij", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:undo())
     b = Button(Rect(740, 250, 115, 45), "Reset", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:reset())
@@ -488,6 +530,10 @@ while run:
     screen.fill((250, 247, 240))
     useHandCursor = False
     handleMouseLogic()
+
+    # Join the minimax thread after it finishes
+    if minimaxThread != None and not minimaxThread.is_alive():
+        minimaxThread.join()
 
     if not isGameOver:
         if currentPlayer == "w": timer2 -= deltaTime
