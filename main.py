@@ -87,6 +87,10 @@ minimaxSearchDepth = 3
 awaitingMove = False
 minimaxThread = None
 
+nerdViewVisible = False
+lastMinimaxScore = 0
+lastSearchDurationMiliseconds = 0
+
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 buttonSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -133,16 +137,24 @@ for i in range(8):
 initBoard = [i for i in board]
 
 def handleMinimax(board, color, depth):
-    global awaitingMove
+    global awaitingMove, lastMinimaxScore
 
-    move = minimax(board, color, depth)[1]
+    startTime = pygame.time.get_ticks()
+
+    result = minimax(board, color, depth)
+    lastMinimaxScore = result[0]
+    move = result[1]
+
     startSquare = getBoardFromCoord(board, move[0])
     endSquare = getBoardFromCoord(board, move[1])
-    handlePieceMove(startSquare, endSquare)
+    handlePieceMove(startSquare, endSquare, startTime)
 
     awaitingMove = False
 
+    return
+
 currentButtons = []
+
 
 class Button:
     hover = False
@@ -271,8 +283,15 @@ def hoverSquare():
     if hover:
         useHandCursor = True
 
-def handlePieceMove(startSquare, endSquare):
-    global board, possibleMoves, currentPlayer, checkMate, isCheck, selected, timePassedThisMove
+def handlePieceMove(startSquare, endSquare, startTime = None):
+    global board, possibleMoves, currentPlayer, checkMate, isCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove
+
+    if not startTime == None:
+        timeElapsed = pygame.time.get_ticks() - startTime
+        if currentPlayer == computerColor:
+            lastSearchDurationMiliseconds = timeElapsed
+        timePassedThisMove = timeElapsed / 1000
+
     allMoves.append((startSquare, endSquare, timePassedThisMove))
     timePassedThisMove = 0
     board = movePiece(board, startSquare, endSquare)
@@ -325,6 +344,7 @@ def clickSquare():
                                 name="minimax",
                                 args=(board, currentPlayer, minimaxSearchDepth)
                             )
+                            minimaxThread.daemon = True
                             minimaxThread.start()
 
 
@@ -340,7 +360,6 @@ def drawColorSquare(surface, coord, color):
         rds = (0, 0, 0, 16)
 
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
-
 
 def drawInit():
     global initSurface
@@ -392,8 +411,6 @@ def drawInit():
 
         if awaitingMove:
             return
-        
-
 
         if len(allMoves) != 0:
             m = allMoves[len(allMoves)-1]
@@ -429,8 +446,14 @@ def drawInit():
             if game_mode == "computer" and not final:
                 undo(True)
 
+    def toggleNerdView():
+        global nerdViewVisible
+        nerdViewVisible = not nerdViewVisible
+
     b = Button(Rect(605, 250, 115, 45), "Cofnij", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:undo())
     b = Button(Rect(740, 250, 115, 45), "Reset", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:reset())
+    if game_mode == "computer":
+        b = Button(Rect(605, 315, 250, 45), "Widok dla nerdów", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:toggleNerdView())
 
     #util.drawRoundedRect(initSurface, (605, 250, 115, 45), color_gray, 16, 16, 16, 16)
     #util.drawText(initSurface, "Cofnij", fnt32, (663,273,20,20), (255,255,255), "center")
@@ -531,16 +554,17 @@ while run:
     useHandCursor = False
     handleMouseLogic()
 
-    # Join the minimax thread after it finishes
-    if minimaxThread != None and not minimaxThread.is_alive():
-        minimaxThread.join()
-
     if not isGameOver:
         if currentPlayer == "w": timer2 -= deltaTime
         else: timer1 -= deltaTime
     if timer1 < 0: timer1 = 0
     if timer2 < 0: timer2 = 0
     if not isGameOver: timePassedThisMove += deltaTime
+
+    # Join the minimax thread after it finishes
+    if minimaxThread != None and not minimaxThread.is_alive():
+        minimaxThread.join()
+        minimaxThread = None
 
     # Timers
     # Draw the timers only when they actually change, to save fps
@@ -589,10 +613,15 @@ while run:
     # util.drawText(screen, "Selected: " + str(selected), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
     # util.drawText(screen, "Hover: " + str(hover), fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright")
     # util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright")
-    #util.drawText(screen, "Time Passed: " + str(round(timePassedThisMove, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 112), color_gray, "topright")
-    #util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
-    #util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
+    # util.drawText(screen, "Time Passed: " + str(round(timePassedThisMove, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 112), color_gray, "topright")
+    # util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
+    # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
     util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright")
+
+    # Nerd View
+    if nerdViewVisible:
+        util.drawText(screen, "Ostatni wynik minimax: " + str(lastMinimaxScore), fnt16, (screen.get_width() - 4, screen.get_height() - 142), color_gray, "topright")
+        util.drawText(screen, "Ostatniego wyszukiwania: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 122), color_gray, "topright")
 
     # Board
     screen.blit(initSurface, (0,0))

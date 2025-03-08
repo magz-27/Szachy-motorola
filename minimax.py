@@ -88,6 +88,8 @@ def scoreBlack(board, currentPlayer = "b"):
 
     return VALUE_WEIGHT * pieceValues + DISTANCE_FROM_CENTER_WEIGHT * distanceScore + KING_SAFETY_WEIGHT * kingSafety + CONTROL_WEIGHT * controlScore
 
+# returns best score found and corresponding move, formatted as:
+# [moveScore, [(StartX, StartY), (EndX, EndY)] ]
 def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
     if (recursionsLeft == 0):
         return [scoreBlack(board), None]
@@ -133,11 +135,3 @@ def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
                 bestMove = move
         
         return [minValue, bestMove]
-
-def minimaxMove(board, color, depth):
-    move = minimax(board, color, depth)[1]
-    return movePiece(board, move[0], move[1])
-
-def printSquares(squares):
-    for square in squares:
-        print(square.coord)
