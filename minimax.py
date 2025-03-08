@@ -10,7 +10,7 @@ def scoreBlack(board, currentPlayer = "b"):
 
     # check for checkmate and stalemate
     dir = 1 if currentPlayer == "w" else -1
-    avaibleMoves = getAllMoves(board, currentPlayer, dir)
+    avaibleMoves = getAllMoves(board, currentPlayer, dir, True)
     hasMoves = len(avaibleMoves) != 0
     if (not hasMoves):
         checkedSquare = check(board)
