@@ -1,6 +1,27 @@
 import pygame
 from pygame.locals import *
 
+# stores lists of existing pieces sorted by color and type,
+# with keys formatted as "color" + "name":
+# eg. pieceDictionary["wp"] is a list of all white pawns on board
+pieceDictionary = {}
+
+def initPieceDictionary(board):
+    global pieceDictionary
+    
+    for square in board:
+        if square == None or square.type.color == None or square.type.name == None:
+            continue
+        
+        key = square.type.color + square.type.name
+
+        if key in pieceDictionary:
+            pieceDictionary[key][square.coord] = square
+            continue
+
+        pieceDictionary[key] = {square.coord: square}
+
+
 
 def getBoardFromCoord(board, coord):
     if coord[0] > 7 or coord[0] < 0 or coord[1] > 7 or coord[1] < 0:
@@ -82,6 +103,14 @@ def getAllMoves(board, color, direction, actual=False):
             moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, actual))
     return moves
 
+def dictGetAllMoves(globalBoard, color, direction, actual=False):
+    moves = []
+    for key in pieceDictionary.keys():
+        if key[0] != color:
+            continue
+        for sq in pieceDictionary[key].values():
+            moves.extend(calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, actual))
+    return moves
 
 def check(board):
     light = getAllMoves(board, 'w', 1)
@@ -328,18 +357,83 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
                     if ch.type.color != color: newMoves.append(m)
     else: newMoves = moves
     return newMoves
-    
 
-def movePiece(sourceBoard, sq1, sq2):
+
+def movePiece(sourceBoard, sq1, sq2, updateDict = False):
+    global pieceDictionary
     board = [Square(i.rect, i.coord, i.type) for i in sourceBoard]
 
     startPosition = sq1.coord if isinstance(sq1, Square) else sq1 
     endPosition = sq2.coord if isinstance(sq1, Square) else sq2 
 
     startSquare = getBoardFromCoord(board, startPosition)
+    endSquare = getBoardFromCoord(board, endPosition)
+
+    if updateDict and (endSquare.type.name != None):
+        # remove piece from global dictionary:
+        key = endSquare.type.color + endSquare.type.name
+        del pieceDictionary[key][endPosition]
+
+    if updateDict:
+        # log piece move
+        key = startSquare.type.color + startSquare.type.name
+        pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
+        del pieceDictionary[key][startPosition]
 
     # move a piece to its destination
     getBoardFromCoord(board, endPosition).type = startSquare.type
     startSquare.type = Type(None, None)
 
     return board
+
+# logs changes done with overridingMovePiece() in format:
+# [ [startSquare, endSquare, endType], ... ]
+changesStack = []
+
+# moves given piece without creating a new board, modifies the current one instead.
+def overridingMovePiece(board, sq1, sq2):
+    global pieceDictionary
+    global changesStack
+
+    startPosition = sq1.coord if isinstance(sq1, Square) else sq1 
+    endPosition = sq2.coord if isinstance(sq1, Square) else sq2 
+
+    startSquare = getBoardFromCoord(board, startPosition)
+    endSquare = getBoardFromCoord(board, endPosition)
+
+    changesStack.append([startSquare, endSquare, endSquare.type])
+
+    # always update dictionary
+    if (endSquare.type.name != None):
+        # remove piece from global dictionary:
+        key = endSquare.type.color + endSquare.type.name
+        del pieceDictionary[key][endSquare.coord]
+        
+    key = startSquare.type.color + startSquare.type.name
+    pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
+    del pieceDictionary[key][startPosition]
+
+    endSquare.type = startSquare.type
+    startSquare.type = Type(None, None)
+
+    return board
+
+
+def undoLastOverride():
+    global pieceDictionary
+    global changesStack
+
+    # change = [startSquare, endSquare, endType]
+    change = changesStack.pop()
+
+    change[0].type = change[1].type
+    change[1].type = change[2]
+
+    # update piece dictionary
+    key = change[0].type.color + change[0].type.name
+    pieceDictionary[key][change[0].coord] = change[1]
+    del pieceDictionary[key][change[1].coord]
+
+    if change[2] != Type(None, None):
+        key = change[2].color + change[2].name
+        pieceDictionary[key][change[1].coord] = change[1]

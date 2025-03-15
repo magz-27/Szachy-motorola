@@ -136,6 +136,8 @@ for i in range(8):
 
 initBoard = [i for i in board]
 
+initPieceDictionary(board)
+
 def handleMinimax(board, color, depth):
     global awaitingMove, lastMinimaxScore
 
@@ -294,7 +296,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
 
     allMoves.append((startSquare, endSquare, timePassedThisMove))
     timePassedThisMove = 0
-    board = movePiece(board, startSquare, endSquare)
+    board = movePiece(board, startSquare, endSquare, True)
     possibleMoves = []
     selected = None
 
@@ -381,12 +383,12 @@ def drawInit():
     # Buttons
     def reset():
         global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, isCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
-
         if awaitingMove:
             return
 
         allMoves = []
         board = initBoard
+        initPieceDictionary(board)
         timer1 = 15 * 60 + 0.95
         timer2 = 15 * 60 + 0.95
         timePassedThisMove = 0
