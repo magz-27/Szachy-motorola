@@ -1,7 +1,16 @@
+import math as pymath
+
 import pygame
 from pygame import *
 
 pygame.init()
+mouseDown = False
+mouseUp = False
+mousePressed = False
+mousePos = (0,0)
+useHandCursor = False
+
+framesPassed = 0
 
 def drawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
     rect = Rect(rect)
@@ -68,7 +77,7 @@ def drawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, rad
     return Rect(pos[0], pos[1], rect.width, rect.height), rectangle
 
 
-def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(0, 0), shadowAlpha=100):
+def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(2, 2), shadowAlpha=66):
     # draw the shadow under text
     if shadowRect != (0,0):
         text_surface = fnt.render(text, True, color)
@@ -79,4 +88,109 @@ def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(0, 0
     text_surface = fnt.render(text, True, color)
     r = text_surface.get_rect()
     surface.blit(text_surface, (r.topleft[0]-r.__getattribute__(anchor)[0]+rect[0], r.topleft[1]-r.__getattribute__(anchor)[1]+rect[1]))
+
+
+currentButtons = []
+
+
+def SineRect(rect, secondsPassed, sineAmplitude, sineSpeed):
+    return (rect[0], rect[1]+pymath.sin(secondsPassed*sineSpeed) *sineAmplitude)
+
+
+class Button:
+    hover = False
+    clicked = False
+
+    def __init__(self, surface, rect: pygame.Rect, onClick=None):
+        global currentButtons, renderButtons, buttonSurface
+        self.surface = surface
+        self.rect = Rect(rect)
+        self.onClick = onClick
+
+        self.defaultColor = (0,0,0,0)
+        self.hoverColor = (0,0,0,0)
+        self.clickColor = (0,0,0,0)
+        self.radius = 16
+
+        self.text = ""
+        self.font = None
+        self.textColor = (255, 255, 255)
+        self.textHoverColor = (255, 255, 255)
+        self.textClickColor = (255, 255, 255)
+        self.textShadowRect = (2, 2)
+        self.shadowAlpha = 50
+
+        currentButtons.append(self)
+
+
+def renderButtons():
+    for b in currentButtons:
+        b.surface.fill((0,0,0,0))
+
+    for b in currentButtons:
+        b : Button
+        color = b.hoverColor if b.hover else b.defaultColor
+        color = b.clickColor if b.clicked and b.hover else color
+
+        textColor = b.textHoverColor if b.hover else b.textColor
+        textColor = b.textClickColor if b.clicked and b.hover else textColor
+
+        drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
+        if b.font != None: drawText(b.surface, b.text, b.font, (b.rect[0]+b.rect[2]/2, b.rect[1]+b.rect[3]/2, b.rect[2], b.rect[3]), textColor, "center" , b.textShadowRect, b.shadowAlpha)
+
+
+def handleButtonLogic():
+    global mousePos, mousePressed, mouseDown, mouseUp, currentButtons, useHandCursor
+
+    for b in currentButtons:
+        if b.rect.collidepoint(mousePos):
+            h = b.hover
+            b.hover = True
+            useHandCursor = True
+            if not h:
+                renderButtons()
+            if mousePressed:
+                b.clicked = True
+            else:
+                b.clicked = False
+            if mouseDown:
+                b.onClick()
+                renderButtons()
+            if mouseUp:
+                renderButtons()
+        else:
+            h = b.hover
+            b.hover = False
+            if h:
+                renderButtons()
+    return useHandCursor
+
+
+def handleMouseLogic():
+    # mousePressed is true if mouse button is currently pressed
+    # mouseClick is true for a single frame when mouse is clicked
+    global mouseDown, mouseUp, mousePressed
+
+    if pygame.mouse.get_pressed()[0]:
+        if mousePressed:
+            mouseDown = False
+        else:
+            mouseDown = True
+        mousePressed = True
+    else:
+        if mousePressed:
+            mouseUp = True
+        mousePressed = False
+        mouseDown = False
+    return mouseDown, mouseUp, mousePressed
+
+
+def update():
+    global mouseDown, mouseUp, mousePressed, mousePos, useHandCursor, framesPassed
+    mousePos = pygame.mouse.get_pos()
+
+    handleButtonLogic()
+    framesPassed += 1
+    if useHandCursor: pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+    else: pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 

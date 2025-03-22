@@ -1,5 +1,6 @@
 import math as pymath
 import pygame
+import pyperclip
 from pygame.locals import *
 import threading
 import util
@@ -73,6 +74,8 @@ timer1 = 15 * 60 + 0.95
 timer2 = 15 * 60 + 0.95
 actualTimer1 = 0
 actualTimer2 = 0
+secondsPassed = 0
+framesPassed = 0
 
 currentPlayer = 'w'
 computerColor = "b"
@@ -81,7 +84,6 @@ possibleMoves = []
 isCheck = None
 checkMate = None
 isGameOver = False
-useHandCursor = False
 
 minimaxSearchDepth = 3
 awaitingMove = False
@@ -95,6 +97,8 @@ initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 buttonSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 timerSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+turnSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
+gameResultSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 notesSurface = pygame.Surface((230, 110), SRCALPHA)
 
 board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
@@ -105,7 +109,6 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "", "", "", "", "", "", "", "",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
-
 
 
 game_mode = menu.show_menu(screen)
@@ -127,7 +130,6 @@ elif game_mode == "player":
     vs_computer = False
 
 
-
 for i in range(8):
     for j in range(8):
         current = j+i*8
@@ -137,6 +139,7 @@ for i in range(8):
 initBoard = [i for i in board]
 
 initPieceDictionary(board)
+
 
 def handleMinimax(board, color, depth):
     global awaitingMove, lastMinimaxScore
@@ -154,62 +157,6 @@ def handleMinimax(board, color, depth):
     awaitingMove = False
 
     return
-
-currentButtons = []
-
-
-class Button:
-    hover = False
-    clicked = False
-    def __init__(self, rect: pygame.Rect, text, font, defaultColor, hoverColor, clickColor, fontColor, radius, onClick):
-        global currentButtons
-        self.rect = Rect(rect)
-        self.text = text
-        self.font = font
-        self.defaultColor = defaultColor
-        self.hoverColor = hoverColor
-        self.clickColor = clickColor
-        self.fontColor = fontColor
-        self.radius = radius
-        self.onClick = onClick
-        currentButtons.append(self)
-        renderButtons()
-
-
-def handleButtonLogic():
-    global currentButtons, useHandCursor
-    for b in currentButtons:
-        if b.rect.collidepoint(mousePos):
-            h = b.hover
-            b.hover = True
-            useHandCursor = True
-            if not h:
-                renderButtons()
-            if mousePressed:
-                b.clicked = True
-            else:
-                b.clicked = False
-            if mouseDown:
-                b.onClick()
-                renderButtons()
-            if mouseUp:
-                renderButtons()
-        else:
-            h = b.hover
-            b.hover = False
-            if h:
-                renderButtons()
-
-def renderButtons():
-    global buttonSurface, currentButtons, timePassed, screen
-    buttonSurface.fill((0,0,0,0))
-    for b in currentButtons:
-        b:Button
-        color = b.hoverColor if b.hover else b.defaultColor
-        color = b.clickColor if b.clicked and b.hover else color
-
-        util.drawRoundedRect(buttonSurface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
-        util.drawText(buttonSurface, b.text, b.font, (b.rect[0]+b.rect[2]/2, b.rect[1]+b.rect[3]/2, b.rect[2], b.rect[3]), b.fontColor, "center")
 
 
 def handleMouseLogic():
@@ -233,8 +180,12 @@ def renderBoard():
     global boardSurface
     # Clear the board
     boardSurface.fill((0, 0, 0, 0))
+    gameResultSurface.fill((0,0,0,0))
 
-    if isGameOver: util.drawRoundedRect(boardSurface, (boardCoords[0], boardCoords[1], 64 * 8, 64 * 8), (47, 45, 41, 40), 16, 16, 16, 16)
+    # make the board darker if game is over
+    if isGameOver:
+        util.drawRoundedRect(boardSurface, (boardCoords[0], boardCoords[1], 64 * 8, 64 * 8), (47, 45, 41, 40), 16, 16, 16, 16)
+
     # draw a colored square to show the last move
     if len(allMoves) > 0:
         m = allMoves[len(allMoves)-1]
@@ -242,18 +193,18 @@ def renderBoard():
         drawColorSquare(boardSurface, m[1].coord, (255, 235, 85, 40))
 
     # draw a red square if check
-    if isCheck: drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
+    if isCheck:
+        drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
 
-    if isCheck and not isGameOver: util.drawText(boardSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,
-                  "center")
+    if isCheck and not isGameOver:
+        util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,"center")
+
     # Render pieces
     for sq in board:
         if drawCoords:
             util.drawText(boardSurface, str(sq.coord), fnt12, (sq.rect[0], sq.rect[1], squareSize, squareSize), color_gray)
         if sq.type.name is None: continue
         else: boardSurface.blit(pieceImages[sq.type.getName()+" "+sq.type.getColor()], sq.rect)
-
-    # make the board darker if game is over
 
     # Render possible squares to move to
     for m in possibleMoves:
@@ -271,7 +222,7 @@ def renderBoard():
 
 
 def hoverSquare():
-    global hover, useHandCursor
+    global hover
     hover = None
 
     for sq in board:
@@ -283,7 +234,8 @@ def hoverSquare():
                 drawColorSquare(screen, sq.coord, (250, 247, 240, 60))
                 hover = sq
     if hover:
-        useHandCursor = True
+        util.useHandCursor = True
+
 
 def handlePieceMove(startSquare, endSquare, startTime = None):
     global board, possibleMoves, currentPlayer, checkMate, isCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove
@@ -444,6 +396,11 @@ def drawInit():
             drawNotes()
             renderBoard()
 
+            # Undo the move in the dictionary
+            pieceDictionary[m[0].type.color + m[0].type.name][m[0].coord] = m[0]
+            del pieceDictionary[m[0].type.color + m[0].type.name][m[1].coord]
+            if m[1].type.name != None: pieceDictionary[m[1].type.color + m[1].type.name][m[1].coord] = m[1]
+
             # Undo computer's and own move
             if game_mode == "computer" and not final:
                 undo(True)
@@ -452,15 +409,40 @@ def drawInit():
         global nerdViewVisible
         nerdViewVisible = not nerdViewVisible
 
-    b = Button(Rect(605, 250, 115, 45), "Cofnij", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:undo())
-    b = Button(Rect(740, 250, 115, 45), "Reset", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:reset())
-    if game_mode == "computer":
-        b = Button(Rect(605, 315, 250, 45), "Widok dla nerdów", fnt32, color_gray, (96, 94, 90), (128, 124, 118), (255,255,255), 16, lambda:toggleNerdView())
+    def copyBoard():
+        boardTxt = "["
+        for sq in board:
+            if sq.type.name == None: boardTxt += '""'
+            else: boardTxt += '"'+sq.type.color+sq.type.name.upper()+'"'
+            boardTxt += ", "
+            if sq.coord[0] == 7 and sq.coord[1] != 7: boardTxt += "\n"
+        boardTxt += "]"
+        pyperclip.copy(boardTxt)
 
-    #util.drawRoundedRect(initSurface, (605, 250, 115, 45), color_gray, 16, 16, 16, 16)
-    #util.drawText(initSurface, "Cofnij", fnt32, (663,273,20,20), (255,255,255), "center")
-    #util.drawRoundedRect(initSurface, (740, 250, 115, 45), color_gray, 16, 16, 16, 16)
-    #util.drawText(initSurface, "Reset", fnt32, (800,273,20,20), (255,255,255), "center")
+    b = util.Button(buttonSurface, Rect(605, 250, 115, 45), lambda: undo())
+    b.text, b.font = "Cofnij", fnt32
+    b.radius = 16
+    b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    b = util.Button(buttonSurface, Rect(740, 250, 115, 45), lambda: reset())
+    b.text, b.font = "Reset", fnt32
+    b.radius = 16
+    b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    b = util.Button(buttonSurface, Rect(605, 655, 115, 25), lambda: copyBoard())
+    b.text, b.font = "Kopiuj tablice", fnt16
+    b.radius = 8
+    b.textShadowRect = (1,1)
+    b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    if game_mode == "computer":
+        b = util.Button(buttonSurface, Rect(605, 625, 115, 25), lambda: toggleNerdView())
+        b.text, b.font = "Statystyki", fnt16
+        b.radius = 8
+        b.textShadowRect = (1, 1)
+        b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    util.renderButtons()
 
     # Draw the board squares
     for sq in board:
@@ -490,18 +472,30 @@ def drawInit():
 def drawTimers():
     global timerSurface
     timerSurface.fill((0,0,0,0))
-    if currentPlayer == "w":
-        util.drawText(timerSurface, f'TURA', fnt32, (390, 655), color_gray, "center")
-        util.drawRoundedRect(timerSurface, (430, 25, 110, 50), color_checkerwhite, 20, 20, 2, 2)
-        util.drawRoundedRect(timerSurface, (430, 624, 110, 50), color_gray, 2, 2, 20, 20)
-        util.drawText(timerSurface, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), color_gray, "center", (2, 2), 80)
-        util.drawText(timerSurface, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), (255, 255, 255), "center", (2, 2), 80)
+    turnSurface.fill((0,0,0,0))
+
+    if not isGameOver:
+        if currentPlayer == "w":
+            util.drawText(turnSurface, f'TURA', fnt32, (385, 650), color_gray, "center")
+            util.drawRoundedRect(timerSurface, (430, 25, 110, 50), color_checkerwhite, 20, 20, 2, 2)
+            util.drawRoundedRect(timerSurface, (430, 624, 110, 50), color_gray, 2, 2, 20, 20)
+            util.drawText(timerSurface,f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), color_gray, "center", (2, 2), 80)
+            util.drawText(timerSurface,f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), (255, 255, 255), "center", (2, 2), 80)
+        else:
+            if not isGameOver: util.drawText(turnSurface, f'TURA', fnt32, (385, 50), color_gray, "center")
+            util.drawRoundedRect(timerSurface, (430, 25, 110, 50), color_gray, 20, 20, 2, 2)
+            util.drawRoundedRect(timerSurface, (430, 624, 110, 50), color_checkerwhite, 2, 2, 20, 20)
+            util.drawText(timerSurface, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}',fnt42, (484, 50), (255, 255, 255), "center", (2, 2), 80)
+            util.drawText(timerSurface, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), color_gray, "center", (2, 2), 80)
     else:
-        util.drawText(timerSurface, f'TURA', fnt32, (390, 60), color_gray, "center")
-        util.drawRoundedRect(timerSurface, (430, 25, 110, 50), color_gray, 20, 20, 2, 2)
+        util.drawRoundedRect(timerSurface, (430, 25, 110, 50), color_checkerwhite, 20, 20, 2, 2)
         util.drawRoundedRect(timerSurface, (430, 624, 110, 50), color_checkerwhite, 2, 2, 20, 20)
-        util.drawText(timerSurface, f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42, (484, 50), (255, 255, 255), "center", (2, 2), 80)
-        util.drawText(timerSurface, f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42, (484, 648), color_gray, "center", (2, 2), 80)
+        util.drawText(timerSurface,
+                      f'{str(pymath.floor(timer1) // 60).zfill(2)}:{str(pymath.floor(timer1) % 60).zfill(2)}', fnt42,
+                      (484, 50), color_gray, "center", (2, 2), 80)
+        util.drawText(timerSurface,
+                      f'{str(pymath.floor(timer2) // 60).zfill(2)}:{str(pymath.floor(timer2) % 60).zfill(2)}', fnt42,
+                      (484, 648), color_gray, "center", (2, 2), 80)
 
 
 def drawNotes():
@@ -553,8 +547,17 @@ while run:
     deltaTime = timer.tick(fps) / 1000
     mousePos = pygame.mouse.get_pos()
     screen.fill((250, 247, 240))
-    useHandCursor = False
-    handleMouseLogic()
+    mouseDown, mouseUp, mousePressed = util.handleMouseLogic()
+    framesPassed += 1
+
+    # Prevents clicking on piece immediately after beginning the game
+    # and timers counting down
+    if framesPassed == 1:
+        mouseDown = False
+        deltaTime = 0
+
+    util.useHandCursor = False
+    secondsPassed += deltaTime
 
     if not isGameOver:
         if currentPlayer == "w": timer2 -= deltaTime
@@ -578,16 +581,17 @@ while run:
     # End game by checkmate
     if checkMate != None and not isGameOver:
         isGameOver = True
+        drawTimers()
         selected = None
         possibleMoves = []
         renderBoard()
         if checkMate == "w":
-            util.drawText(boardSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray, "center")
-            util.drawText(boardSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 320), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
 
         if checkMate == "b":
-            util.drawText(boardSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray, "center")
-            util.drawText(boardSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 320), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
 
     # End game by time over
     if timer1 <= 0 and not isGameOver:
@@ -595,9 +599,10 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(boardSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,
-                      "center")
-        util.drawText(boardSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 320),
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
+                      color_gray,"center")
+        util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26,
+                      (screen.get_width() - 173, screen.get_height() - 315),
                       color_gray, "center")
 
     if timer2 <= 0 and not isGameOver:
@@ -605,9 +610,11 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(boardSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
+                      color_gray,
                       "center")
-        util.drawText(boardSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 320),
+        util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26,
+                      (screen.get_width() - 173, screen.get_height() - 315),
                       color_gray, "center")
 
     # Debug
@@ -618,29 +625,28 @@ while run:
     # util.drawText(screen, "Time Passed: " + str(round(timePassedThisMove, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 112), color_gray, "topright")
     # util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
     # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
-    util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright")
+    util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 28, screen.get_height() - 36), color_gray, "topright", (0,0))
 
     # Nerd View
     if nerdViewVisible:
-        util.drawText(screen, "Ostatni wynik minimax: " + str(lastMinimaxScore), fnt16, (screen.get_width() - 4, screen.get_height() - 142), color_gray, "topright")
-        util.drawText(screen, "Ostatniego wyszukiwania: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 122), color_gray, "topright")
+        util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 28, screen.get_height() - 72), color_gray, "topright", (0,0))
+        util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 28, screen.get_height() - 54), color_gray, "topright", (0,0))
 
     # Board
     screen.blit(initSurface, (0,0))
     screen.blit(boardSurface, (0,0))
     screen.blit(buttonSurface, (0,0))
     screen.blit(timerSurface, (0,0))
+    screen.blit(turnSurface, util.SineRect((0, 0), secondsPassed, 2, 8))
+    screen.blit(gameResultSurface, util.SineRect((0, 0), secondsPassed, 3, 8))
     screen.blit(notesSurface, (615, 110))
     if not isGameOver:
         hoverSquare()
         clickSquare()
 
-    handleButtonLogic()
+    util.update()
 
     events = pygame.event.get()
-
-    if useHandCursor: pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-    else: pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
     for event in events:
         if event.type == pygame.QUIT:
