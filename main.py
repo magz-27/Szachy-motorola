@@ -1,9 +1,11 @@
+import cProfile
 import math as pymath
 import pygame
 import pyperclip
 from pygame.locals import *
 import threading
 import util
+import copy
 
 from engine import *
 
@@ -24,8 +26,10 @@ selectMarker = pygame.image.load("graphics/select.png")
 
 dotMarkerLight = pygame.image.load("graphics/dotlight.png")
 captureMarkerLight = pygame.image.load("graphics/capturelight.png")
+specialMarkerLight = pygame.image.load("graphics/speciallight.png")
 dotMarkerDark = pygame.image.load("graphics/dotdark.png")
 captureMarkerDark = pygame.image.load("graphics/capturedark.png")
+specialMarkerDark = pygame.image.load("graphics/specialdark.png")
 
 pygame.display.set_icon(icon_pygame)
 
@@ -81,9 +85,12 @@ currentPlayer = 'w'
 computerColor = "b"
 allMoves = []
 possibleMoves = []
-isCheck = None
+whiteInCheck = False
+blackInCheck = False
 checkMate = None
 isGameOver = False
+kingWhiteCoord = None
+kingBlackCoord = None
 
 minimaxSearchDepth = 3
 awaitingMove = False
@@ -101,6 +108,16 @@ turnSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA
 gameResultSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 notesSurface = pygame.Surface((230, 110), SRCALPHA)
 
+# Pawn promotion test board
+# board = ["bR", "bN", "bB", "bQ", "bK", "bB", "", "",
+#          "bP", "bP", "bP", "bP", "bP", "bP", "wP", "wP",
+#          "", "", "", "", "", "", "", "",
+#          "", "", "", "", "", "", "", "",
+#          "", "", "", "", "", "", "", "",
+#          "", "", "", "", "", "", "", "",
+#          "wP", "wP", "wP", "wP", "wP", "wP", "", "bP",
+#          "wR", "wN", "wB", "wQ", "wK", "wB", "", ""]
+
 board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
          "", "", "", "", "", "", "", "",
@@ -109,7 +126,6 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "", "", "", "", "", "", "", "",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
-
 
 game_mode = menu.show_menu(screen)
 
@@ -136,7 +152,7 @@ for i in range(8):
         if board[current] == "": board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j, i), Type(None, None))
         else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
 
-initBoard = [i for i in board]
+initBoard = copy.deepcopy(board)
 
 initPieceDictionary(board)
 
@@ -146,7 +162,7 @@ def handleMinimax(board, color, depth):
 
     startTime = pygame.time.get_ticks()
 
-    result = minimax(board, color, depth)
+    result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
     lastMinimaxScore = result[0]
     move = result[1]
 
@@ -193,10 +209,10 @@ def renderBoard():
         drawColorSquare(boardSurface, m[1].coord, (255, 235, 85, 40))
 
     # draw a red square if check
-    if isCheck:
-        drawColorSquare(boardSurface, isCheck.coord, (255, 90, 84, 64))
+    if whiteInCheck: drawColorSquare(boardSurface, kingWhiteCoord, (255, 90, 84, 64))
+    if blackInCheck: drawColorSquare(boardSurface, kingBlackCoord, (255, 90, 84, 64))
 
-    if isCheck and not isGameOver:
+    if (whiteInCheck or blackInCheck) and not isGameOver:
         util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,"center")
 
     # Render pieces
@@ -209,6 +225,18 @@ def renderBoard():
     # Render possible squares to move to
     for m in possibleMoves:
         # Render a different marker if capturing a piece
+
+        # KINGPOSIOTOIN UNDO
+
+        # Pawn promotion
+        if selected.type.name == "p" and m.type.name == None:
+            if m.coord[1] == 0 and currentPlayer == "w":
+                boardSurface.blit(specialMarkerLight, m.rect)
+                continue
+            elif m.coord[1] == 7 and currentPlayer == "b":
+                boardSurface.blit(specialMarkerDark, m.rect)
+                continue
+
         if m.type.name == None:
             if currentPlayer == "w":
                 boardSurface.blit(dotMarkerLight, m.rect)
@@ -238,7 +266,7 @@ def hoverSquare():
 
 
 def handlePieceMove(startSquare, endSquare, startTime = None):
-    global board, possibleMoves, currentPlayer, checkMate, isCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove
+    global board, possibleMoves, currentPlayer, checkMate, whiteInCheck, blackInCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove, kingWhiteCoord, kingBlackCoord
 
     if not startTime == None:
         timeElapsed = pygame.time.get_ticks() - startTime
@@ -246,8 +274,20 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
 
-    allMoves.append((startSquare, endSquare, timePassedThisMove))
     timePassedThisMove = 0
+    allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove))
+
+    # Pawn promotion
+    if startSquare.type.name == "p":
+        if (endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b"):
+            del pieceDictionary[startSquare.type.color + startSquare.type.name][startSquare.coord]
+            pieceDictionary[startSquare.type.color + "q"][startSquare.coord] = startSquare
+            startSquare.type.name = "q"
+
+    if startSquare.type.name == "k":
+        if startSquare.type.color == "w": kingWhiteCoord = endSquare.coord
+        else: kingBlackCoord = endSquare.coord
+
     board = movePiece(board, startSquare, endSquare, True)
     possibleMoves = []
     selected = None
@@ -257,19 +297,22 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
     drawTimers()
     drawNotes()
 
-    #check
-    isCheck = check(board)
+    # check
+    whiteInCheck = check(board, "w", kingWhiteCoord)
+    blackInCheck = check(board, "b", kingBlackCoord)
+
+    kingCoord = kingWhiteCoord if currentPlayer == "w" else kingBlackCoord
 
     #checkmate
     #print(getAllMoves(board, currentPlayer, dir, True))
-    if getAllMoves(board, currentPlayer, dir, True) == []:
+    if not getAllMoves(board, currentPlayer, dir, kingCoord, True):
         checkMate = currentPlayer
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
     renderBoard()
 
 
 def clickSquare():
-    global awaitingMove, board, selected, possibleMoves, currentPlayer, isCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
+    global awaitingMove, board, selected, possibleMoves, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
     for sq in board:
         # Draw a select marker
         if sq == selected:
@@ -284,7 +327,9 @@ def clickSquare():
                     else:
                         selected = sq
                         dir = 1 if currentPlayer == "w" else -1
-                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, True)
+
+                        kingCoord = kingWhiteCoord if currentPlayer == "w" else kingBlackCoord
+                        possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, kingCoord, True)
                     renderBoard()
                 # Move a piece
                 else:
@@ -300,6 +345,7 @@ def clickSquare():
                             )
                             minimaxThread.daemon = True
                             minimaxThread.start()
+                            #cProfile.run("handleMinimax(board,currentPlayer, minimaxSearchDepth)")
 
 
 def drawColorSquare(surface, coord, color):
@@ -316,7 +362,7 @@ def drawColorSquare(surface, coord, color):
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
 
 def drawInit():
-    global initSurface
+    global initSurface, kingWhiteCoord, kingBlackCoord
 
     # Border
     util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
@@ -334,12 +380,12 @@ def drawInit():
 
     # Buttons
     def reset():
-        global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, isCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
+        global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
         if awaitingMove:
             return
 
         allMoves = []
-        board = initBoard
+        board = copy.deepcopy(initBoard)
         initPieceDictionary(board)
         timer1 = 15 * 60 + 0.95
         timer2 = 15 * 60 + 0.95
@@ -361,16 +407,33 @@ def drawInit():
         renderBoard()
 
     def undo(final = False):
-        global allMoves, awaitingMove, board, isCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves
+        global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord
 
         if awaitingMove:
             return
 
         if len(allMoves) != 0:
             m = allMoves[len(allMoves)-1]
+
+            # Pawn promotion
+            pieceName = m[0].type.name
+            if m[0].type.name == "p":
+                if (m[1].coord[1] == 0 and m[0].type.color == "w") or (m[1].coord[1] == 7 and m[0].type.color == "b"):
+                    pieceName = "q"
+
+            # Undo the move in the dictionary
+            pieceDictionary[m[0].type.color + m[0].type.name][m[0].coord] = m[0]
+            del pieceDictionary[m[0].type.color + pieceName][m[1].coord]
+            if m[1].type.name != None: pieceDictionary[m[1].type.color + m[1].type.name][m[1].coord] = m[1]
+
             for i, sq in enumerate(board):
                 if sq.coord == m[0].coord: board[i] = m[0]
                 if sq.coord == m[1].coord: board[i] = m[1]
+
+            # Undo king position
+            if m[0].type.name == "k":
+                if m[0].type.color == "w": kingWhiteCoord = m[0].coord
+                else: kingBlackCoord = m[0].coord
 
             if m[0].type.color == "w":
                 #timer2 += m[2]
@@ -386,7 +449,8 @@ def drawInit():
             # Reset game over
             checkMate = None
             isGameOver = False
-            isCheck = check(board)
+            whiteInCheck = check(board, "w", kingWhiteCoord)
+            blackInCheck = check(board, "b", kingBlackCoord)
 
             # Reset selection
             selected = None
@@ -396,10 +460,6 @@ def drawInit():
             drawNotes()
             renderBoard()
 
-            # Undo the move in the dictionary
-            pieceDictionary[m[0].type.color + m[0].type.name][m[0].coord] = m[0]
-            del pieceDictionary[m[0].type.color + m[0].type.name][m[1].coord]
-            if m[1].type.name != None: pieceDictionary[m[1].type.color + m[1].type.name][m[1].coord] = m[1]
 
             # Undo computer's and own move
             if game_mode == "computer" and not final:
@@ -465,6 +525,13 @@ def drawInit():
             rds = (0, 0, 16, 0)
         elif sq.coord == (7, 7):
             rds = (0, 0, 0, 16)
+
+        # Change the king coordinates
+        if sq.type.name == "k":
+            if sq.type.color == "w":
+                kingWhiteCoord = sq.coord
+            else:
+                kingBlackCoord = sq.coord
 
         square = util.drawRoundedRect(initSurface, sq.rect, clr, rds[0], rds[1], rds[2], rds[3])
 
@@ -625,6 +692,8 @@ while run:
     # util.drawText(screen, "Time Passed: " + str(round(timePassedThisMove, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 112), color_gray, "topright")
     # util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
     # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
+    #util.drawText(screen, "KingWhite: " + str(kingWhiteCoord), fnt16, (screen.get_width() - 28, screen.get_height() - 56), color_gray, "topright", (0,0))
+    #util.drawText(screen, "KingBlack: " + str(kingBlackCoord), fnt16, (screen.get_width() - 28, screen.get_height() - 76), color_gray, "topright", (0,0))
     util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 28, screen.get_height() - 36), color_gray, "topright", (0,0))
 
     # Nerd View

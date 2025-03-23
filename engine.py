@@ -96,42 +96,91 @@ class Type:
         return self.color == other.color and self.name == other.name
 
 
-def getAllMoves(board, color, direction, actual=False):
+def getAllMoves(board, color, direction, kingCoord, onlyLegal=False):
     moves = []
     for sq in board:
         if sq.type.color == color:
-            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, actual))
+            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, onlyLegal))
     return moves
 
-def dictGetAllMoves(globalBoard, color, direction, actual=False):
+
+def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
     moves = []
     for key in pieceDictionary.keys():
         if key[0] != color:
             continue
         for sq in pieceDictionary[key].values():
-            moves.extend(calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, actual))
+            moves.extend(calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, onlyLegal))
     return moves
 
-def check(board):
-    light = getAllMoves(board, 'w', 1)
-    dark = getAllMoves(board, 'b', -1)
 
-    l = None
-    d = None
+def check(board, color, kingCoord):
+    # Checks only the squares that can attack the king, instead of every square on the board.
+    # Checks every direction from the king, if there's a piece in the way, stops checking in that direction
+    # Knights are checked separately, because they don't attack in a straight line
 
-    for m in light:
-        if m.type.name == "k":
-            l = m
-    for m in dark:
-        if m.type.name == "k":
-            d = m
-    if l and d: return l,d
-    elif l: return l
-    elif d: return d
-    return None
+    orthogonalDir = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    diagonalDir = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
+    knightDir = [(1, 2), (-1, 2), (1, -2), (-1, -2), (2, 1), (-2, 1), (2, -1), (-2, -1)]
+    x = kingCoord[0]
+    y = kingCoord[1]
+    enem = "b" if color == "w" else "w"
+
+    isSafe = True
+
+    for d in orthogonalDir:
+        i = 1
+        while True:
+            testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
+
+            # Stops checking if the square is off the board
+            if testSq == None: break
+
+            if testSq.type.color == color:
+                break
+            if testSq.type.color == enem and (testSq.type.name == "r" or testSq.type.name == "q"):
+                isSafe = False
+                break
+            if testSq.type.color == enem and (testSq.type.name == "k" and i == 1):
+                isSafe = False
+                break
+            if testSq.type.name != None:
+                break
+            i += 1
+
+    for d in diagonalDir:
+        i = 1
+        while True:
+            testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
+
+            # Stops checking if the square is off the board
+            if testSq == None: break
+
+            if testSq.type.color == color:
+                break
+            if testSq.type.color == enem and (testSq.type.name == "b" or testSq.type.name == "q"):
+                isSafe = False
+                break
+            if testSq.type.color == enem and (testSq.type.name == "k" or testSq.type.name == "p") and i == 1:
+                isSafe = False
+                break
+            if testSq.type.name != None:
+                break
+            i += 1
+
+    for d in knightDir:
+        testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
+
+        # Stops checking if the square is off the board
+        if testSq == None: break
+
+        if testSq.type.color == enem and testSq.type.name == "n":
+            isSafe = False
+
+    return not isSafe
 
 
-def calculateMoves(board, coord, name, color, direction, actual=False):
+def calculateMoves(board, coord, name, color, direction, kingCoord, onlyLegal=False):
     moves = []
 
     # Pawn movement
@@ -301,8 +350,8 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
 
     # Queen movement
     if name == "q":
-        moves.extend(calculateMoves(board, coord,"r", color, direction))
-        moves.extend(calculateMoves(board, coord, "b", color, direction))
+        moves.extend(calculateMoves(board, coord,"r", color, direction, kingCoord))
+        moves.extend(calculateMoves(board, coord, "b", color, direction, kingCoord))
 
     # King movement
     if name == "k":
@@ -347,14 +396,14 @@ def calculateMoves(board, coord, name, color, direction, actual=False):
             if sq.type.color != color: moves.append(sq)
 
     newMoves = []
-    if actual:
+    if onlyLegal:
         for m in moves:
             b = movePiece(board, getBoardFromCoord(board, coord), m)
-            ch = check(b)
-            if ch == None: newMoves.append(m)
-            else:
-                if type(ch) is not tuple:
-                    if ch.type.color != color: newMoves.append(m)
+            if name == "k":
+                kingCoord = m.coord
+
+            if not check(b, color, kingCoord): newMoves.append(m)
+
     else: newMoves = moves
     return newMoves
 
@@ -381,8 +430,9 @@ def movePiece(sourceBoard, sq1, sq2, updateDict = False):
         del pieceDictionary[key][startPosition]
 
     # move a piece to its destination
-    getBoardFromCoord(board, endPosition).type = startSquare.type
+    endSquare.type = startSquare.type
     startSquare.type = Type(None, None)
+
 
     return board
 

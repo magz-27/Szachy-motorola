@@ -1,7 +1,7 @@
 import math
 from engine import *
 
-def scoreBlack(board, currentPlayer = "b"):
+def scoreBlack(board, kingWhiteCoord, kingBlackCoord, currentPlayer = "b"):
     global pieceDictionary
 
     # parameters
@@ -12,20 +12,23 @@ def scoreBlack(board, currentPlayer = "b"):
 
     # check for checkmate and stalemate
     dir = 1 if currentPlayer == "w" else -1
-    avaibleMoves = dictGetAllMoves(board, currentPlayer, dir, True)
+    kingCoord = kingWhiteCoord if currentPlayer == "w" else kingBlackCoord
+    enemyPlayer = "b" if currentPlayer == "w" else "w"
+    enemyKingCoord = kingWhiteCoord if currentPlayer == "b" else kingBlackCoord
+
+    avaibleMoves = dictGetAllMoves(board, currentPlayer, dir, kingCoord, True)
     hasMoves = len(avaibleMoves) != 0
     if (not hasMoves):
-        checkedSquare = check(board)
-        if (isinstance(checkedSquare, tuple)):
-            # stalemate
-            return 0
+        playerInCheck = check(board, currentPlayer, kingCoord)
+        enemyInCheck = check(board, enemyPlayer, enemyKingCoord)
 
-        if (checkedSquare != None):
-            # checkmate
-            return math.inf if checkedSquare.type.color == currentPlayer else -math.inf
-        else:
+        if playerInCheck and enemyInCheck:
             # stalemate
             return 0
+        elif playerInCheck:
+            return math.inf
+        else:
+            return -math.inf
 
     # create an array with pieces only:
     pieceSquares = [square for square in board if square.type.name != None]
@@ -59,7 +62,7 @@ def scoreBlack(board, currentPlayer = "b"):
     # score based on distance from centre:
     distanceScore = 0
     for piece in pieceSquares:
-        if (piece.type.name == "k" or piece.type.name == "p"):
+        if piece.type.name == "k" or piece.type.name == "p":
             # ignore kings and pawns
             continue
         
@@ -71,16 +74,11 @@ def scoreBlack(board, currentPlayer = "b"):
 
     # score based on king safety:
     kingSafety = 0
-    kingPosition = (0,0)
-    for piece in pieceSquares:
-        if piece.type.name == "k" and piece.type.color == currentPlayer:
-            kingPosition = (piece.coord[0] - 1, piece.coord[1] - 1)
-            break
 
     # iterate over neighbouring squares:
     for i in range(3):
         for j in range(3):
-            checkedPosition = (kingPosition[0] + i, kingPosition[1] + j)
+            checkedPosition = (kingCoord[0] + i, kingCoord[1] + j)
             checkedSquare = getBoardFromCoord(board,checkedPosition)
             if checkedSquare == None:
                 kingSafety += 0.11
@@ -100,9 +98,11 @@ def scoreBlack(board, currentPlayer = "b"):
 
 # returns best score found and corresponding move, formatted as:
 # [moveScore, [(StartX, StartY), (EndX, EndY)] ]
-def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
+def minimax(board, color, kingWhiteCoord, kingBlackCoord, recursionsLeft, alphaBetaLimit = None):
     if (recursionsLeft == 0):
-        return [scoreBlack(board), None]
+        return [scoreBlack(board, kingWhiteCoord, kingBlackCoord), None]
+
+    kingCoord = kingWhiteCoord if color == "w" else kingBlackCoord
     
     # create an array of possible moves formatted as:
     # [start position, end position]
@@ -112,7 +112,7 @@ def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
             continue
 
         dir = 1 if color == "w" else -1
-        possibleMoves = calculateMoves(board, square.coord, square.type.name, square.type.color, dir)
+        possibleMoves = calculateMoves(board, square.coord, square.type.name, square.type.color, dir, kingCoord)
         for possibleMove in possibleMoves:
             moves.append([square.coord, possibleMove.coord])
 
@@ -123,7 +123,7 @@ def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
         maxValue = -math.inf
         
         for move in moves:
-            value = minimax(overridingMovePiece(board, move[0], move[1]), 'w', recursionsLeft - 1, maxValue)[0]
+            value = minimax(overridingMovePiece(board, move[0], move[1]), 'w', kingWhiteCoord, kingBlackCoord, recursionsLeft - 1, maxValue)[0]
             undoLastOverride()
 
             if (alphaBetaLimit != None and value > alphaBetaLimit):
@@ -139,7 +139,7 @@ def minimax(board, color, recursionsLeft, alphaBetaLimit = None):
         minValue = math.inf
 
         for move in moves:
-            value = minimax(overridingMovePiece(board, move[0], move[1]), 'b', recursionsLeft - 1, minValue)[0]
+            value = minimax(overridingMovePiece(board, move[0], move[1]), 'b', kingWhiteCoord, kingBlackCoord, recursionsLeft - 1, minValue)[0]
             undoLastOverride()
 
             if (alphaBetaLimit != None and value < alphaBetaLimit):
