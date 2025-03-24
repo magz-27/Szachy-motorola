@@ -169,10 +169,10 @@ def check(board, color, kingCoord):
             i += 1
 
     for d in knightDir:
-        testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
+        testSq = getBoardFromCoord(board, (x + d[0], y + d[1]))
 
         # Stops checking if the square is off the board
-        if testSq == None: break
+        if testSq == None: continue
 
         if testSq.type.color == enem and testSq.type.name == "n":
             isSafe = False

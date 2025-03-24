@@ -112,7 +112,7 @@ def minimax(board, color, kingWhiteCoord, kingBlackCoord, recursionsLeft, alphaB
             continue
 
         dir = 1 if color == "w" else -1
-        possibleMoves = calculateMoves(board, square.coord, square.type.name, square.type.color, dir, kingCoord)
+        possibleMoves = calculateMoves(board, square.coord, square.type.name, square.type.color, dir, kingCoord, True)
         for possibleMove in possibleMoves:
             moves.append([square.coord, possibleMove.coord])
 

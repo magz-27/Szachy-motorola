@@ -118,6 +118,7 @@ notesSurface = pygame.Surface((230, 110), SRCALPHA)
 #          "wP", "wP", "wP", "wP", "wP", "wP", "", "bP",
 #          "wR", "wN", "wB", "wQ", "wK", "wB", "", ""]
 
+
 board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
          "", "", "", "", "", "", "", "",
@@ -126,6 +127,7 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "", "", "", "", "", "", "", "",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
+
 
 game_mode = menu.show_menu(screen)
 
@@ -337,6 +339,7 @@ def clickSquare():
                         handlePieceMove(selected, hover)
 
                         if game_mode == "computer":
+                            if checkMate: return
                             awaitingMove = True
                             minimaxThread = threading.Thread(
                                 target=handleMinimax,
@@ -396,7 +399,8 @@ def drawInit():
         # Reset game over
         checkMate = None
         isGameOver = False
-        isCheck = False
+        whiteInCheck = None
+        blackInCheck = None
 
         # Reset selection
         selected = None
