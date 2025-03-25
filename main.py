@@ -1,7 +1,7 @@
 import cProfile
 import math as pymath
 import pygame
-import pyperclip
+#import pyperclip
 from pygame.locals import *
 import threading
 import util
@@ -485,15 +485,15 @@ def drawInit():
         global nerdViewVisible
         nerdViewVisible = not nerdViewVisible
 
-    def copyBoard():
-        boardTxt = "["
-        for sq in board:
-            if sq.type.name == None: boardTxt += '""'
-            else: boardTxt += '"'+sq.type.color+sq.type.name.upper()+'"'
-            boardTxt += ", "
-            if sq.coord[0] == 7 and sq.coord[1] != 7: boardTxt += "\n"
-        boardTxt += "]"
-        pyperclip.copy(boardTxt)
+    # def copyBoard():
+    #     boardTxt = "["
+    #     for sq in board:
+    #         if sq.type.name == None: boardTxt += '""'
+    #         else: boardTxt += '"'+sq.type.color+sq.type.name.upper()+'"'
+    #         boardTxt += ", "
+    #         if sq.coord[0] == 7 and sq.coord[1] != 7: boardTxt += "\n"
+    #     boardTxt += "]"
+    #     pyperclip.copy(boardTxt)
 
     b = util.Button(buttonSurface, Rect(605, 250, 115, 45), lambda: undo())
     b.text, b.font = "Cofnij", fnt32
