@@ -1,6 +1,7 @@
 import math
 from engine import *
 
+
 def scoreBlack(board, kingWhiteCoord, kingBlackCoord, currentPlayer = "b"):
     global pieceDictionary
 
@@ -95,6 +96,7 @@ def scoreBlack(board, kingWhiteCoord, kingBlackCoord, currentPlayer = "b"):
 
 
     return VALUE_WEIGHT * pieceValues + DISTANCE_FROM_CENTER_WEIGHT * distanceScore + KING_SAFETY_WEIGHT * kingSafety + CONTROL_WEIGHT * controlScore
+
 
 # returns best score found and corresponding move, formatted as:
 # [moveScore, [(StartX, StartY), (EndX, EndY)] ]

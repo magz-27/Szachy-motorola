@@ -106,6 +106,7 @@ class Button:
         self.surface = surface
         self.rect = Rect(rect)
         self.onClick = onClick
+        self.image = None
 
         self.defaultColor = (0,0,0,0)
         self.hoverColor = (0,0,0,0)
@@ -137,6 +138,9 @@ def renderButtons():
 
         drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
         if b.font != None: drawText(b.surface, b.text, b.font, (b.rect[0]+b.rect[2]/2, b.rect[1]+b.rect[3]/2, b.rect[2], b.rect[3]), textColor, "center" , b.textShadowRect, b.shadowAlpha)
+        if b.image != None:
+            img = b.surface.blit(b.image, (b.rect[0], b.rect[1]))
+            b.surface.fill(textColor, img, special_flags=BLEND_RGB_ADD)
 
 
 def handleButtonLogic():
@@ -177,9 +181,12 @@ def handleMouseLogic():
         else:
             mouseDown = True
         mousePressed = True
+        mouseUp = False
     else:
         if mousePressed:
             mouseUp = True
+        else:
+            mouseUp = False
         mousePressed = False
         mouseDown = False
     return mouseDown, mouseUp, mousePressed

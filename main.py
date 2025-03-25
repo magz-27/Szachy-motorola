@@ -24,12 +24,17 @@ fps = 60
 icon_pygame = pygame.image.load('graphics/icon.png')
 selectMarker = pygame.image.load("graphics/select.png")
 
-dotMarkerLight = pygame.image.load("graphics/dotlight.png")
-captureMarkerLight = pygame.image.load("graphics/capturelight.png")
-specialMarkerLight = pygame.image.load("graphics/speciallight.png")
-dotMarkerDark = pygame.image.load("graphics/dotdark.png")
-captureMarkerDark = pygame.image.load("graphics/capturedark.png")
-specialMarkerDark = pygame.image.load("graphics/specialdark.png")
+dotMarkerLight = pygame.image.load("graphics/marker_dot_white.png")
+captureMarkerLight = pygame.image.load("graphics/marker_capture_white.png")
+specialMarkerLight = pygame.image.load("graphics/marker_special_white.png")
+dotMarkerDark = pygame.image.load("graphics/marker_dot_black.png")
+captureMarkerDark = pygame.image.load("graphics/marker_capture_black.png")
+specialMarkerDark = pygame.image.load("graphics/marker_special_black.png")
+
+iconExit = pygame.image.load("graphics/icon_exit.png")
+iconSound = pygame.image.load("graphics/icon_sound.png")
+iconStats = pygame.image.load("graphics/icon_stats.png")
+iconCopy = pygame.image.load("graphics/icon_copy.png")
 
 pygame.display.set_icon(icon_pygame)
 
@@ -128,25 +133,34 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 
+game_mode = None
 
-game_mode = menu.show_menu(screen)
+run = True
 
-if game_mode == "quit":
-    pygame.quit()
-    exit()
-elif game_mode == "computer":
-    player1 = "Player 1"
-    player2 = "Computer"
-    vs_computer = True
-elif game_mode == "online":
-    player1 = "Player 1"
-    player2 = "Online Player"
-    vs_computer = False
-elif game_mode == "player":
-    player1 = "Player 1"
-    player2 = "Player 2"
-    vs_computer = False
 
+def showMenu():
+    global player1, player2, vs_computer, game_mode
+    game_mode = None
+    game_mode = menu.show_menu(screen)
+
+    if game_mode == "quit":
+        pygame.quit()
+        exit()
+    elif game_mode == "computer":
+        player1 = "Player 1"
+        player2 = "Computer"
+        vs_computer = True
+    elif game_mode == "online":
+        player1 = "Player 1"
+        player2 = "Online Player"
+        vs_computer = False
+    elif game_mode == "player":
+        player1 = "Player 1"
+        player2 = "Player 2"
+        vs_computer = False
+
+
+showMenu()
 
 for i in range(8):
     for j in range(8):
@@ -175,23 +189,6 @@ def handleMinimax(board, color, depth):
     awaitingMove = False
 
     return
-
-
-def handleMouseLogic():
-    # mousePressed is true if mouse button is currently pressed
-    # mouseClick is true for a single frame when mouse is clicked
-    global mouseDown, mouseUp, mousePressed
-    mouseUp = False
-    if pygame.mouse.get_pressed()[0]:
-        if mousePressed:
-            mouseDown = False
-        else:
-            mouseDown = True
-        mousePressed = True
-    else:
-        if mousePressed:mouseUp = True
-        mousePressed = False
-        mouseDown = False
 
 
 def renderBoard():
@@ -364,9 +361,52 @@ def drawColorSquare(surface, coord, color):
 
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
 
+
+def resetBoard():
+    global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
+    if awaitingMove:
+        return
+
+    allMoves = []
+    board = copy.deepcopy(initBoard)
+    initPieceDictionary(board)
+    timer1 = 15 * 60 + 0.95
+    timer2 = 15 * 60 + 0.95
+    timePassedThisMove = 0
+
+    currentPlayer = "w"
+
+    # Reset game over
+    checkMate = None
+    isGameOver = False
+    whiteInCheck = None
+    blackInCheck = None
+
+    # Reset selection
+    selected = None
+    possibleMoves = []
+
+    drawTimers()
+    drawNotes()
+    renderBoard()
+
+
+def restartGame():
+    if awaitingMove:
+        return
+    global framesPassed
+    resetBoard()
+    framesPassed = 0
+    util.currentButtons = []
+
+    showMenu()
+    drawInit()
+
+
 def drawInit():
     global initSurface, kingWhiteCoord, kingBlackCoord
 
+    initSurface.fill((0,0,0,0))
     # Border
     util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
 
@@ -382,34 +422,6 @@ def drawInit():
     util.drawRoundedRect(initSurface, (605, 100, 250, 125), color_checkerwhite, 16, 16, 16, 16)
 
     # Buttons
-    def reset():
-        global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
-        if awaitingMove:
-            return
-
-        allMoves = []
-        board = copy.deepcopy(initBoard)
-        initPieceDictionary(board)
-        timer1 = 15 * 60 + 0.95
-        timer2 = 15 * 60 + 0.95
-        timePassedThisMove = 0
-
-        currentPlayer = "w"
-
-        # Reset game over
-        checkMate = None
-        isGameOver = False
-        whiteInCheck = None
-        blackInCheck = None
-
-        # Reset selection
-        selected = None
-        possibleMoves = []
-
-        drawTimers()
-        drawNotes()
-        renderBoard()
-
     def undo(final = False):
         global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord
 
@@ -488,23 +500,27 @@ def drawInit():
     b.radius = 16
     b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
 
-    b = util.Button(buttonSurface, Rect(740, 250, 115, 45), lambda: reset())
+    b = util.Button(buttonSurface, Rect(740, 250, 115, 45), lambda: resetBoard())
     b.text, b.font = "Reset", fnt32
     b.radius = 16
     b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
 
-    b = util.Button(buttonSurface, Rect(605, 655, 115, 25), lambda: copyBoard())
-    b.text, b.font = "Kopiuj tablice", fnt16
-    b.radius = 8
-    b.textShadowRect = (1,1)
-    b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+    # Top buttons
+    b = util.Button(buttonSurface, Rect(810, 30, 48, 48), lambda: restartGame())
+    b.image = iconExit
+    b.textColor, b.textHoverColor, b.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
-    if game_mode == "computer":
-        b = util.Button(buttonSurface, Rect(605, 625, 115, 25), lambda: toggleNerdView())
-        b.text, b.font = "Statystyki", fnt16
-        b.radius = 8
-        b.textShadowRect = (1, 1)
-        b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+    b = util.Button(buttonSurface, Rect(750, 30, 48, 48), lambda: print("Test"))
+    b.image = iconSound
+    b.textColor, b.textHoverColor, b.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+
+    b = util.Button(buttonSurface, Rect(685, 30, 48, 48), lambda: toggleNerdView())
+    b.image = iconStats
+    b.textColor, b.textHoverColor, b.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+
+    # b = util.Button(buttonSurface, Rect(627, 30, 48, 48), lambda: copyBoard())
+    # b.image = iconCopy
+    # b.textColor, b.textHoverColor, b.textClickColor = (0,0,0), (40, 40, 40), (80, 80, 80)
 
     util.renderButtons()
 
@@ -538,6 +554,8 @@ def drawInit():
                 kingBlackCoord = sq.coord
 
         square = util.drawRoundedRect(initSurface, sq.rect, clr, rds[0], rds[1], rds[2], rds[3])
+
+    renderBoard()
 
 
 def drawTimers():
@@ -608,13 +626,11 @@ def drawNotes():
         util.drawText(notesSurface, f"{strg}", fnt26,(pos, 15 + (count - absolute) * 25, 20, 20), color_gray, "center")
         last = count
 
-run = True
 
 drawInit()
 
-renderBoard()
-
 while run:
+    if not game_mode: continue
     deltaTime = timer.tick(fps) / 1000
     mousePos = pygame.mouse.get_pos()
     screen.fill((250, 247, 240))
@@ -629,6 +645,7 @@ while run:
 
     util.useHandCursor = False
     secondsPassed += deltaTime
+
 
     if not isGameOver:
         if currentPlayer == "w": timer2 -= deltaTime
@@ -688,22 +705,14 @@ while run:
                       (screen.get_width() - 173, screen.get_height() - 315),
                       color_gray, "center")
 
-    # Debug
-    # util.drawText(screen, "MouseUp: " + str(mouseUp), fnt16, (screen.get_width() - 4, screen.get_height() - 102), color_gray, "topright")
-    # util.drawText(screen, "Selected: " + str(selected), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
-    # util.drawText(screen, "Hover: " + str(hover), fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright")
-    # util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright")
-    # util.drawText(screen, "Time Passed: " + str(round(timePassedThisMove, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 112), color_gray, "topright")
-    # util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
-    # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
-    #util.drawText(screen, "KingWhite: " + str(kingWhiteCoord), fnt16, (screen.get_width() - 28, screen.get_height() - 56), color_gray, "topright", (0,0))
-    #util.drawText(screen, "KingBlack: " + str(kingBlackCoord), fnt16, (screen.get_width() - 28, screen.get_height() - 76), color_gray, "topright", (0,0))
-    util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 28, screen.get_height() - 36), color_gray, "topright", (0,0))
-
     # Nerd View
     if nerdViewVisible:
-        util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 28, screen.get_height() - 72), color_gray, "topright", (0,0))
-        util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 28, screen.get_height() - 54), color_gray, "topright", (0,0))
+        if game_mode == "computer":
+            util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright", (0,0))
+            util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
+        util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
+        util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright", (0,0))
+
 
     # Board
     screen.blit(initSurface, (0,0))
