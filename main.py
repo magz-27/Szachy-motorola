@@ -9,7 +9,7 @@ import copy
 
 from engine import *
 
-from minimax import *
+from ai_algorithms import *
 import menu
 
 

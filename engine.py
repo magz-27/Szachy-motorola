@@ -114,6 +114,14 @@ def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
     return moves
 
 
+def mctsGetAllMoves(board, color, kingCoord):
+    moves = []
+    direction = 1 if color == "w" else -1
+    for sq in board:
+        if sq.type.color == color:
+            moves.extend([[sq, moveDestination] for moveDestination in calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, True)])
+
+
 def check(board, color, kingCoord):
     # Checks only the squares that can attack the king, instead of every square on the board.
     # Checks every direction from the king, if there's a piece in the way, stops checking in that direction
@@ -487,3 +495,29 @@ def undoLastOverride():
     if change[2] != Type(None, None):
         key = change[2].color + change[2].name
         pieceDictionary[key][change[1].coord] = change[1]
+
+def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDirection = False):
+    isWhiteInCheck = check(board, "w", kingWhiteCoord)
+    isBlackInCheck = check(board, "b", kingBlackCoord)
+    whiteMoveCount = getAllMoves(board, "w", -1 if reverseDirection else 1, kingWhiteCoord, True)
+    blackMoveCount = getAllMoves(board, "b", 1 if reverseDirection else -1, kingBlackCoord, True)
+
+    if blacksTurn:
+        if blackMoveCount == 0:
+            if isBlackInCheck:
+                # white won
+                return "w"
+            
+            # draw by stalemate
+            return "d"
+    else:
+        if whiteMoveCount == 0:
+            if isWhiteInCheck:
+                # black won
+                return "b"
+            
+            # draw by stalemate
+            return "d"
+    
+    # game has not ended yet
+    return "0"
