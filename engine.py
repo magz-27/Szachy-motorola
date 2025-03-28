@@ -524,7 +524,6 @@ def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDi
 
     if blacksTurn:
         if blackMoveCount == 0:
-            print('czar')
             if isBlackInCheck:
                 # white won
                 return "w"
@@ -533,7 +532,6 @@ def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDi
             return "d"
     else:
         if whiteMoveCount == 0:
-            print('biał')
             if isWhiteInCheck:
                 # black won
                 return "b"
