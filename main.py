@@ -35,6 +35,8 @@ iconExit = pygame.image.load("graphics/icon_exit.png")
 iconSound = pygame.image.load("graphics/icon_sound.png")
 iconStats = pygame.image.load("graphics/icon_stats.png")
 iconCopy = pygame.image.load("graphics/icon_copy.png")
+iconScrollUp = pygame.image.load("graphics/icon_scrollup.png")
+iconScrollDown = pygame.image.load("graphics/icon_scrolldown.png")
 
 pygame.display.set_icon(icon_pygame)
 
@@ -42,6 +44,7 @@ fnt56 = pygame.font.Font("font.otf", 56)
 fnt42 = pygame.font.Font("font.otf", 42)
 fnt32 = pygame.font.Font("font.otf", 32)
 fnt26 = pygame.font.Font("font.otf", 26)
+fnt18 = pygame.font.Font("font.otf", 18)
 fnt16 = pygame.font.Font("font.otf", 16)
 fnt12 = pygame.font.Font("font.otf", 12)
 
@@ -70,6 +73,7 @@ color_redtest = (236, 70, 70)
 
 timePassedThisMove = 0
 drawCoords = False
+useLongNotation = False
 boardCoords = (50, 90)
 squareSize = 64
 mousePressed = False
@@ -85,6 +89,10 @@ actualTimer1 = 0
 actualTimer2 = 0
 secondsPassed = 0
 framesPassed = 0
+scroll = 0
+
+scrollUpBtn = None
+scrollDownBtn = None
 
 currentPlayer = 'w'
 computerColor = "b"
@@ -111,7 +119,7 @@ buttonSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALP
 timerSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 turnSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 gameResultSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
-notesSurface = pygame.Surface((230, 110), SRCALPHA)
+notesSurface = pygame.Surface((615, 110), SRCALPHA)
 
 # Pawn promotion test board
 # board = ["bR", "bN", "bB", "bQ", "bK", "bB", "", "",
@@ -265,7 +273,7 @@ def hoverSquare():
 
 
 def handlePieceMove(startSquare, endSquare, startTime = None):
-    global board, possibleMoves, currentPlayer, checkMate, whiteInCheck, blackInCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove, kingWhiteCoord, kingBlackCoord
+    global board, possibleMoves, currentPlayer, checkMate, whiteInCheck, blackInCheck, lastSearchDurationMiliseconds, selected, timePassedThisMove, kingWhiteCoord, kingBlackCoord, scroll
 
     if not startTime == None:
         timeElapsed = pygame.time.get_ticks() - startTime
@@ -274,7 +282,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         timePassedThisMove = timeElapsed / 1000
 
     timePassedThisMove = 0
-    allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove))
+    allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove, False))
 
     # Pawn promotion
     if startSquare.type.name == "p":
@@ -293,8 +301,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
 
     currentPlayer = "w" if currentPlayer == "b" else "b"
     dir = 1 if currentPlayer == "w" else -1
-    drawTimers()
-    drawNotes()
+    scroll = 0
 
     # check
     whiteInCheck = check(board, "w", kingWhiteCoord)
@@ -302,11 +309,18 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
 
     kingCoord = kingWhiteCoord if currentPlayer == "w" else kingBlackCoord
 
+    if whiteInCheck or blackInCheck:
+        lastMove = allMoves[len(allMoves)-1]
+        allMoves[len(allMoves)-1] = (lastMove[0], lastMove[1], lastMove[2], True)
+
     #checkmate
     #print(getAllMoves(board, currentPlayer, dir, True))
     if not getAllMoves(board, currentPlayer, dir, kingCoord, True):
         checkMate = currentPlayer
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+    drawTimers()
+    drawNotes()
     renderBoard()
 
 
@@ -363,7 +377,9 @@ def drawColorSquare(surface, coord, color):
 
 
 def resetBoard():
-    global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, selected, possibleMoves, timePassedThisMove
+    global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, \
+        checkMate, isGameOver, selected, possibleMoves, timePassedThisMove, scroll
+
     if awaitingMove:
         return
 
@@ -386,6 +402,8 @@ def resetBoard():
     selected = None
     possibleMoves = []
 
+    scroll = 0
+
     drawTimers()
     drawNotes()
     renderBoard()
@@ -404,7 +422,7 @@ def restartGame():
 
 
 def drawInit():
-    global initSurface, kingWhiteCoord, kingBlackCoord
+    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn
 
     initSurface.fill((0,0,0,0))
     # Border
@@ -423,7 +441,8 @@ def drawInit():
 
     # Buttons
     def undo(final = False):
-        global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1, timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord
+        global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1,\
+            timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord, scroll
 
         if awaitingMove:
             return
@@ -472,6 +491,8 @@ def drawInit():
             selected = None
             possibleMoves = []
 
+            scroll = 0
+
             drawTimers()
             drawNotes()
             renderBoard()
@@ -484,6 +505,16 @@ def drawInit():
     def toggleNerdView():
         global nerdViewVisible
         nerdViewVisible = not nerdViewVisible
+
+    def scrollNotesUp():
+        global scroll
+        scroll += 1
+        drawNotes()
+
+    def scrollNotesDown():
+        global scroll
+        scroll -= 1
+        drawNotes()
 
     # def copyBoard():
     #     boardTxt = "["
@@ -521,6 +552,16 @@ def drawInit():
     # b = util.Button(buttonSurface, Rect(627, 30, 48, 48), lambda: copyBoard())
     # b.image = iconCopy
     # b.textColor, b.textHoverColor, b.textClickColor = (0,0,0), (40, 40, 40), (80, 80, 80)
+
+    scrollUpBtn = util.Button(buttonSurface, Rect(828, 108, 20, 20), lambda: scrollNotesUp())
+    scrollUpBtn.image = iconScrollUp
+    scrollUpBtn.disabled = True
+    scrollUpBtn.textColor, scrollUpBtn.textHoverColor, scrollUpBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+
+    scrollDownBtn = util.Button(buttonSurface, Rect(828, 198, 20, 20), lambda: scrollNotesDown())
+    scrollDownBtn.image = iconScrollDown
+    scrollDownBtn.disabled = True
+    scrollDownBtn.textColor, scrollDownBtn.textHoverColor, scrollDownBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
     util.renderButtons()
 
@@ -597,7 +638,7 @@ def drawNotes():
         count = i // 2
         pos = i % 2
         if count != last:
-            util.drawText(notesSurface, f"{count + 1}.", fnt26, (5, (count - absolute) * 25, 20, 20), color_gray)
+            util.drawText(notesSurface, f"{count + 1}.", fnt26, (5, (count - absolute + scroll) * 25, 20, 20), color_gray)
 
         strg = ""
         letters = ["a", "b", "c", "d", "e", "f", "g", "h"]
@@ -610,21 +651,45 @@ def drawNotes():
             # Pawn capture
             else:
                 strg += letters[m[0].coord[0]]
-                strg += "x"
-                strg += letters[m[1].coord[0]]
+                if not useLongNotation:
+                    strg += "x"
+                    strg += letters[m[1].coord[0]]
                 strg += str(8 - m[1].coord[1])
         else:
             strg += m[0].type.name.upper()
-            if m[1].type.name != None: strg += "x"
+            if m[1].type.name != None and not useLongNotation: strg += "x"
             strg += letters[m[1].coord[0]]
             strg += str(8 - m[1].coord[1])
 
+        if useLongNotation:
+            if m[1].type.name == None:
+                strg += "-"
+            else:
+                strg += "x"
+            strg += letters[m[1].coord[0]]
+            strg += str(8 - m[1].coord[1])
+
+        if m[3] and not checkMate:
+            strg += "+"
         if pos == 0:
-            pos = 85
+            pos = 75
         else:
-            pos = 180
-        util.drawText(notesSurface, f"{strg}", fnt26,(pos, 15 + (count - absolute) * 25, 20, 20), color_gray, "center")
+            pos = 160
+
+        if checkMate and i == len(allMoves)-1: strg += "#"
+        if useLongNotation:
+            util.drawText(notesSurface, f"{strg}", fnt18, (pos, 15 + (count - absolute + scroll) * 25, 20, 20), color_gray, "center", (1, 1))
+        else:
+            util.drawText(notesSurface, f"{strg}", fnt26,(pos, 15 + (count - absolute + scroll) * 25, 20, 20), color_gray, "center", (2,2))
         last = count
+
+        if scroll+1 > absolute: scrollUpBtn.disabled = True
+        else: scrollUpBtn.disabled = False
+
+        if -scroll+1 > 0: scrollDownBtn.disabled = True
+        else: scrollDownBtn.disabled = False
+
+    util.renderButtons()
 
 
 drawInit()
@@ -713,6 +778,22 @@ while run:
         util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
         util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright", (0,0))
 
+    events = pygame.event.get()
+
+    for event in events:
+        if event.type == pygame.QUIT:
+            run = False
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y > 0:
+                event.y = 1
+                if not scrollUpBtn.disabled:
+                    scroll += event.y
+            else:
+                event.y = -1
+                if not scrollDownBtn.disabled:
+                    scroll += event.y
+
+            drawNotes()
 
     # Board
     screen.blit(initSurface, (0,0))
@@ -722,17 +803,12 @@ while run:
     screen.blit(turnSurface, util.SineRect((0, 0), secondsPassed, 2, 8))
     screen.blit(gameResultSurface, util.SineRect((0, 0), secondsPassed, 3, 8))
     screen.blit(notesSurface, (615, 110))
+
     if not isGameOver:
         hoverSquare()
         clickSquare()
 
     util.update()
-
-    events = pygame.event.get()
-
-    for event in events:
-        if event.type == pygame.QUIT:
-            run = False
 
     pygame.display.flip()
 

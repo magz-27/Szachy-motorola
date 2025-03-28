@@ -107,6 +107,7 @@ class Button:
         self.rect = Rect(rect)
         self.onClick = onClick
         self.image = None
+        self.disabled = False
 
         self.defaultColor = (0,0,0,0)
         self.hoverColor = (0,0,0,0)
@@ -131,16 +132,17 @@ def renderButtons():
     for b in currentButtons:
         b : Button
         color = b.hoverColor if b.hover else b.defaultColor
-        color = b.clickColor if b.clicked and b.hover else color
+        color = Color(b.clickColor if b.clicked and b.hover else color)
 
         textColor = b.textHoverColor if b.hover else b.textColor
-        textColor = b.textClickColor if b.clicked and b.hover else textColor
+        textColor = Color(b.textClickColor if b.clicked and b.hover else textColor)
 
-        drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
+        if color.r != 0:drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
         if b.font != None: drawText(b.surface, b.text, b.font, (b.rect[0]+b.rect[2]/2, b.rect[1]+b.rect[3]/2, b.rect[2], b.rect[3]), textColor, "center" , b.textShadowRect, b.shadowAlpha)
         if b.image != None:
             img = b.surface.blit(b.image, (b.rect[0], b.rect[1]))
             b.surface.fill(textColor, img, special_flags=BLEND_RGB_ADD)
+            if b.disabled: b.surface.fill((0,0,0,175), img, special_flags=BLEND_RGBA_SUB)
 
 
 def handleButtonLogic():
@@ -148,6 +150,7 @@ def handleButtonLogic():
 
     for b in currentButtons:
         if b.rect.collidepoint(mousePos):
+            if b.disabled: return
             h = b.hover
             b.hover = True
             useHandCursor = True
