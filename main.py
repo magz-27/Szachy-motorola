@@ -9,7 +9,7 @@ import copy
 
 from engine import *
 
-from minimax import *
+from ai_algorithms import *
 import menu
 
 
@@ -104,14 +104,20 @@ checkMate = None
 isGameOver = False
 kingWhiteCoord = None
 kingBlackCoord = None
+nerdViewVisible = False
 
-minimaxSearchDepth = 3
+minimaxSearchDepth = None
+minimaxEasySearchDepth = 2
+minimaxHardSearchDepth = 3
 awaitingMove = False
 minimaxThread = None
 
-nerdViewVisible = False
 lastMinimaxScore = 0
 lastSearchDurationMiliseconds = 0
+
+mctsTimeLimitMiliseconds = 0
+mctsEasyTimeLimitMiliseconds = 1000
+mctsHardTimeLimitMiliseconds = 2000
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -145,11 +151,14 @@ game_mode = None
 
 run = True
 
+menu_options = None
 
 def showMenu():
-    global player1, player2, vs_computer, game_mode
-    game_mode = None
-    game_mode = menu.show_menu(screen)
+    global player1, player2, vs_computer, game_mode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds
+    menu_options = menu.show_menu(screen)
+    game_mode = menu_options["selected_option"]
+    minimaxSearchDepth = minimaxEasySearchDepth if menu_options["difficulty"] == "easy" else minimaxHardSearchDepth
+    mctsTimeLimitMiliseconds = mctsEasyTimeLimitMiliseconds if menu_options["difficulty"] == "easy" else mctsHardTimeLimitMiliseconds
 
     if game_mode == "quit":
         pygame.quit()
@@ -181,14 +190,19 @@ initBoard = copy.deepcopy(board)
 initPieceDictionary(board)
 
 
-def handleMinimax(board, color, depth):
+def handleComputerMove(board, color, depth):
     global awaitingMove, lastMinimaxScore
 
     startTime = pygame.time.get_ticks()
 
-    result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
-    lastMinimaxScore = result[0]
-    move = result[1]
+
+    if (menu_options["algorithm"] == "minimax"):
+        result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
+        lastMinimaxScore = result[0]
+        move = result[1]
+    else:
+        move = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
+    
 
     startSquare = getBoardFromCoord(board, move[0])
     endSquare = getBoardFromCoord(board, move[1])
@@ -284,18 +298,11 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
     timePassedThisMove = 0
     allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove, False))
 
-    # Pawn promotion
-    if startSquare.type.name == "p":
-        if (endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b"):
-            del pieceDictionary[startSquare.type.color + startSquare.type.name][startSquare.coord]
-            pieceDictionary[startSquare.type.color + "q"][startSquare.coord] = startSquare
-            startSquare.type.name = "q"
-
     if startSquare.type.name == "k":
         if startSquare.type.color == "w": kingWhiteCoord = endSquare.coord
         else: kingBlackCoord = endSquare.coord
 
-    board = movePiece(board, startSquare, endSquare, True)
+    board = movePiece(board, startSquare, endSquare, True, True)
     possibleMoves = []
     selected = None
 
@@ -353,7 +360,7 @@ def clickSquare():
                             if checkMate: return
                             awaitingMove = True
                             minimaxThread = threading.Thread(
-                                target=handleMinimax,
+                                target=handleComputerMove,
                                 name="minimax",
                                 args=(board, currentPlayer, minimaxSearchDepth)
                             )
