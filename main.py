@@ -96,14 +96,20 @@ checkMate = None
 isGameOver = False
 kingWhiteCoord = None
 kingBlackCoord = None
+nerdViewVisible = False
 
-minimaxSearchDepth = 3
+minimaxSearchDepth = None
+minimaxEasySearchDepth = 2
+minimaxHardSearchDepth = 3
 awaitingMove = False
 minimaxThread = None
 
-nerdViewVisible = False
 lastMinimaxScore = 0
 lastSearchDurationMiliseconds = 0
+
+mctsTimeLimitMiliseconds = 0
+mctsEasyTimeLimitMiliseconds = 1000
+mctsHardTimeLimitMiliseconds = 2000
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -137,11 +143,14 @@ game_mode = None
 
 run = True
 
+menu_options = None
 
 def showMenu():
-    global player1, player2, vs_computer, game_mode
-    game_mode = None
-    game_mode = menu.show_menu(screen)
+    global player1, player2, vs_computer, game_mode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds
+    menu_options = menu.show_menu(screen)
+    game_mode = menu_options["selected_option"]
+    minimaxSearchDepth = minimaxEasySearchDepth if menu_options["difficulty"] == "easy" else minimaxHardSearchDepth
+    mctsTimeLimitMiliseconds = mctsEasyTimeLimitMiliseconds if menu_options["difficulty"] == "easy" else mctsHardTimeLimitMiliseconds
 
     if game_mode == "quit":
         pygame.quit()
@@ -173,12 +182,17 @@ initBoard = copy.deepcopy(board)
 initPieceDictionary(board)
 
 
-def handleMinimax(board, color, depth):
+def handleComputerMove(board, color, depth):
     global awaitingMove, lastMinimaxScore
 
     startTime = pygame.time.get_ticks()
 
-    result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
+    result = None
+    if (menu_options["algorithm"] == "minimax"):
+        result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
+    else:
+        result = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
+    
     lastMinimaxScore = result[0]
     move = result[1]
 
@@ -339,7 +353,7 @@ def clickSquare():
                             if checkMate: return
                             awaitingMove = True
                             minimaxThread = threading.Thread(
-                                target=handleMinimax,
+                                target=handleComputerMove,
                                 name="minimax",
                                 args=(board, currentPlayer, minimaxSearchDepth)
                             )
