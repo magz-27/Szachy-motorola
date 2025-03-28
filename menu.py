@@ -8,6 +8,7 @@ logo = pygame.image.load("graphics/logo.png")
 
 
 class Menu:
+
     def __init__(self, screen):
         self.screen = screen
         self.fnt56 = pygame.font.Font("font.otf", 56)
@@ -24,14 +25,50 @@ class Menu:
 
         self.running = True
 
+        self.state = {
+            "algoritm": "minimax",
+            "difficulty": "hard"
+        }
+
         def pressButton(option):
-            self.selected_option = option
+            setState("selected_option", option)
             if option == "quit":
                 pygame.quit()
                 sys.exit()
             self.running = False
 
-        b = util.Button(self.buttonSurface, Rect(300, 360, 300, 55), lambda: pressButton("computer"))
+        def setState(key, value):
+            self.state[key] = value
+
+        def initComputerMenu():
+            util.currentButtons = []
+
+            b = util.Button(self.buttonSurface, Rect(150, 360, 300, 55), lambda: setState("algorithm", "minimax"))
+            b.text, b.font = "Minimax AB", self.fnt32
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+            b = util.Button(self.buttonSurface, Rect(450, 360, 300, 55), lambda: setState("algorithm", "mcts"))
+            b.text, b.font = "Monte Carlo Tree Search", self.fnt32
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+            b = util.Button(self.buttonSurface, Rect(150, 400, 300, 55), lambda: setState("difficulty", "easy"))
+            b.text, b.font = "Latwy", self.fnt32
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+            b = util.Button(self.buttonSurface, Rect(450, 400, 300, 55), lambda: setState("difficulty", "hard"))
+            b.text, b.font = "Trudny", self.fnt32
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+            b = util.Button(self.buttonSurface, Rect(250, 480, 400, 55), lambda: pressButton("computer"))
+            b.text, b.font = "Graj", self.fnt48
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+        b = util.Button(self.buttonSurface, Rect(300, 360, 300, 55), lambda: initComputerMenu())
         b.text, b.font = "Vs. Komputer", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
@@ -77,7 +114,10 @@ class Menu:
             pygame.display.flip()
 
         util.currentButtons = []
-        return self.selected_option
+        return self.state
+    
+    
+
 
 
 def show_menu(screen):
