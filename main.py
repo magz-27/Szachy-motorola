@@ -187,14 +187,14 @@ def handleComputerMove(board, color, depth):
 
     startTime = pygame.time.get_ticks()
 
-    result = None
+
     if (menu_options["algorithm"] == "minimax"):
         result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
+        lastMinimaxScore = result[0]
+        move = result[1]
     else:
-        result = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
+        move = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
     
-    lastMinimaxScore = result[0]
-    move = result[1]
 
     startSquare = getBoardFromCoord(board, move[0])
     endSquare = getBoardFromCoord(board, move[1])
@@ -290,18 +290,11 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
     timePassedThisMove = 0
     allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove))
 
-    # Pawn promotion
-    if startSquare.type.name == "p":
-        if (endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b"):
-            del pieceDictionary[startSquare.type.color + startSquare.type.name][startSquare.coord]
-            pieceDictionary[startSquare.type.color + "q"][startSquare.coord] = startSquare
-            startSquare.type.name = "q"
-
     if startSquare.type.name == "k":
         if startSquare.type.color == "w": kingWhiteCoord = endSquare.coord
         else: kingBlackCoord = endSquare.coord
 
-    board = movePiece(board, startSquare, endSquare, True)
+    board = movePiece(board, startSquare, endSquare, True, True)
     possibleMoves = []
     selected = None
 
