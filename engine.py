@@ -105,6 +105,8 @@ def getAllMoves(board, color, direction, kingCoord, onlyLegal=False):
 
 
 def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
+    global pieceDictionary
+
     moves = []
     for key in pieceDictionary.keys():
         if key[0] != color:
@@ -114,13 +116,17 @@ def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
     return moves
 
 
-def mctsGetAllMoves(board, color, kingCoord):
+def mctsGetAllMoves(globalBoard, color, kingCoord):
+    global pieceDictionary
+
+
     moves = []
     direction = 1 if color == "w" else -1
-    for sq in board:
-        if sq.type.color == color:
-            moves.extend([[sq, moveDestination] for moveDestination in calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, True)])
-
+    for key in pieceDictionary.keys():
+        if key[0] != color:
+            continue
+        for sq in pieceDictionary[key].values():
+            moves.extend([sq, move] for move in calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, True))
     return moves
 
 def check(board, color, kingCoord):
@@ -435,6 +441,7 @@ def movePiece(sourceBoard, sq1, sq2, updateDict = False, pawnPromotion = False):
     key = startSquare.type.color + startSquare.type.name
     if updateDict:
         # log piece move
+        pieceDictionary[key][startPosition].coord = endPosition
         pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
         del pieceDictionary[key][startPosition]
 
@@ -479,23 +486,27 @@ def overridingMovePiece(board, sq1, sq2):
         key = endSquare.type.color + endSquare.type.name
         del pieceDictionary[key][endSquare.coord]
 
-    # pawn promotion:
-    if startSquare.type.name == "p":
-        if (endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b"):
-            del pieceDictionary[startSquare.type.color + startSquare.type.name][startSquare.coord]
-            temp = Square(startSquare.rect, startSquare.coord, Type("q", startSquare.type.color))
-            startSquare = temp
-            pieceDictionary[startSquare.type.color + "q"][startSquare.coord] = startSquare
-        
     key = startSquare.type.color + startSquare.type.name
+
+    pieceDictionary[key][startPosition].coord = endPosition
     pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
     del pieceDictionary[key][startPosition]
 
-    endSquare.type = startSquare.type
+    
+    # pawn promotion:
+    if startSquare.type.name == "p" and ((endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b")):
+        changesStack.append([startSquare, startSquare, Type("promotion", startSquare.type.color)])
+
+        del pieceDictionary[key][endPosition]
+        pieceDictionary[startSquare.type.color + "q"][endPosition] = Square(endSquare.rect, endPosition, Type("q", startSquare.type.color))
+
+        endSquare.type = Type("q", startSquare.type.color)
+    else:
+        endSquare.type = startSquare.type
+    
     startSquare.type = Type(None, None)
 
     return board
-
 
 def undoLastOverride():
     global pieceDictionary
@@ -504,17 +515,28 @@ def undoLastOverride():
     # change = [startSquare, endSquare, endType]
     change = changesStack.pop()
 
+    undoPawnPromotion = False
+    if change[2].type.name == "promotion":
+        undoPawnPromotion = True
+        change[2].type = Type("q", change[2].type.color)
+
+
     change[0].type = change[1].type
     change[1].type = change[2]
 
     # update the piece dictionary
     key = change[0].type.color + change[0].type.name
-    pieceDictionary[key][change[0].coord] = change[1]
     del pieceDictionary[key][change[1].coord]
+    pieceDictionary[key][change[0].coord] = change[1]
 
     if change[2] != Type(None, None):
         key = change[2].color + change[2].name
         pieceDictionary[key][change[1].coord] = change[1]
+
+    if undoPawnPromotion:
+        # after undoing the change of piece type, undo change of piece position
+        undoLastOverride()
+
 
 def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDirection = False):
     isWhiteInCheck = check(board, "w", kingWhiteCoord)

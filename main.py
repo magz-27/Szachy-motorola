@@ -118,6 +118,7 @@ lastSearchDurationMiliseconds = 0
 mctsTimeLimitMiliseconds = 0
 mctsEasyTimeLimitMiliseconds = 1000
 mctsHardTimeLimitMiliseconds = 2000
+lastMctsSearchSize = 0
 
 initSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 boardSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
@@ -191,7 +192,7 @@ initPieceDictionary(board)
 
 
 def handleComputerMove(board, color, depth):
-    global awaitingMove, lastMinimaxScore
+    global awaitingMove, lastMinimaxScore, lastMctsSearchSize
 
     startTime = pygame.time.get_ticks()
 
@@ -199,10 +200,11 @@ def handleComputerMove(board, color, depth):
     if (menu_options["algorithm"] == "minimax"):
         result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
         lastMinimaxScore = result[0]
-        move = result[1]
     else:
-        move = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
-    
+        result = monteCarloTS(board, color, mctsTimeLimitMiliseconds)
+        lastMctsSearchSize = result[0]
+
+    move = result[1]
 
     startSquare = getBoardFromCoord(board, move[0])
     endSquare = getBoardFromCoord(board, move[1])
@@ -780,8 +782,11 @@ while run:
     # Nerd View
     if nerdViewVisible:
         if game_mode == "computer":
-            util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright", (0,0))
-            util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
+            if menu_options["algorithm"] == "minimax":
+                util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright", (0,0))
+                util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
+            else:
+                util.drawText(screen, "Ostatnio przeszukanych opcji: " + str(lastMctsSearchSize), fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
         util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
         util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright", (0,0))
 
