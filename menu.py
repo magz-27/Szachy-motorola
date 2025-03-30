@@ -13,6 +13,7 @@ class Menu:
         self.screen = screen
         self.fnt56 = pygame.font.Font("font.otf", 56)
         self.fnt48 = pygame.font.Font("font.otf", 48)
+        self.fnt36 = pygame.font.Font("font.otf", 36)
         self.fnt32 = pygame.font.Font("font.otf", 32)
         self.color_gray = (74, 73, 71)
         self.color_hover = (96, 94, 90)
@@ -25,60 +26,143 @@ class Menu:
 
         self.running = True
 
-        self.state = {
-            "algoritm": "minimax",
-            "difficulty": "hard"
-        }
+        self.lengthBtn = None
+        self.notationBtn = None
+        self.algorithmBtn = None
+        self.difficultyBtn = None
+
+        self.gameMode = "computer"
+        self.gameLength = False
+        self.notationType = ""
+        self.algorithm = "minimax"
+        self.difficulty = 1
+
 
         def pressButton(option):
-            setState("selected_option", option)
+            if self.lengthBtn:
+                self.gameLength = [False, True][self.lengthBtn.currentState]
+
+            if self.notationBtn:
+                self.notationType = [False, True][self.notationBtn.currentState]
+
+            if self.algorithmBtn:
+                self.algorithm = ["minimax", "montecarlo"][self.algorithmBtn.currentState]
+
+            if self.difficultyBtn:
+                self.difficulty = [1, 2, 3][self.difficultyBtn.currentState]
+
             if option == "quit":
                 pygame.quit()
                 sys.exit()
+
+            self.gameMode = option
             self.running = False
 
-        def setState(key, value):
-            self.state[key] = value
-
         def initComputerMenu():
-            util.currentButtons = []
+            util.clearButtons()
+            self.soundBtn = util.Button(self.buttonSurface, Rect(830, 15, 48, 48), lambda: util.clickSound(self.soundBtn))
+            if util.isSoundOn:
+                self.soundBtn.image = util.iconSoundOn
+            else:
+                self.soundBtn.image = util.iconSoundOff
+            self.soundBtn.textColor, self.soundBtn.textHoverColor, self.soundBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
-            b = util.Button(self.buttonSurface, Rect(150, 360, 300, 55), lambda: setState("algorithm", "minimax"))
-            b.text, b.font = "Minimax AB", self.fnt32
-            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
-            b.shadowAlpha = 66
+            self.lengthBtn = util.ToggleButton(self.buttonSurface, Rect(300, 345, 300, 40))
+            self.lengthBtn.states, self.lengthBtn.font = ["Czas gry: Zwykly", "Czas gry: Blyskawiczny"], self.fnt36
+            self.lengthBtn.textShadowRect = (1,1)
+            self.lengthBtn.textColor, self.lengthBtn.textHoverColor, self.lengthBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
 
-            b = util.Button(self.buttonSurface, Rect(450, 360, 300, 55), lambda: setState("algorithm", "mcts"))
-            b.text, b.font = "Monte Carlo Tree Search", self.fnt32
-            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
-            b.shadowAlpha = 66
+            self.notationBtn = util.ToggleButton(self.buttonSurface, Rect(300, 395, 300, 40))
+            self.notationBtn.states, self.notationBtn.font = ["Notacja: Klasyczna", "Notacja: Dluga"], self.fnt36
+            self.notationBtn.textShadowRect = (1,1)
+            self.notationBtn.textColor, self.notationBtn.textHoverColor, self.notationBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
 
-            b = util.Button(self.buttonSurface, Rect(150, 400, 300, 55), lambda: setState("difficulty", "easy"))
-            b.text, b.font = "Latwy", self.fnt32
-            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
-            b.shadowAlpha = 66
+            self.algorithmBtn = util.ToggleButton(self.buttonSurface, Rect(300, 445, 300, 40))
+            self.algorithmBtn.states, self.algorithmBtn.font = ["Algorytm: MiniMax", "Algorytm: Monte Carlo"], self.fnt36
+            self.algorithmBtn.textShadowRect = (1,1)
+            self.algorithmBtn.textColor, self.algorithmBtn.textHoverColor, self.algorithmBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
 
-            b = util.Button(self.buttonSurface, Rect(450, 400, 300, 55), lambda: setState("difficulty", "hard"))
-            b.text, b.font = "Trudny", self.fnt32
-            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
-            b.shadowAlpha = 66
+            self.difficultyBtn = util.ToggleButton(self.buttonSurface, Rect(300, 495, 300, 40))
+            self.difficultyBtn.states, self.difficultyBtn.font = ["Poziom: Latwy", "Poziom: Sredni", "Poziom: Trudny"], self.fnt36
+            self.difficultyBtn.textShadowRect = (1,1)
+            self.difficultyBtn.textColor, self.difficultyBtn.textHoverColor, self.difficultyBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
 
-            b = util.Button(self.buttonSurface, Rect(250, 480, 400, 55), lambda: pressButton("computer"))
+            b = util.Button(self.buttonSurface, Rect(300, 600, 300, 55), lambda: pressButton("computer"))
             b.text, b.font = "Graj", self.fnt48
             b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
             b.shadowAlpha = 66
+
+        def initOnlineMenu():
+            util.clearButtons()
+            self.soundBtn = util.Button(self.buttonSurface, Rect(830, 15, 48, 48), lambda: util.clickSound(self.soundBtn))
+            if util.isSoundOn:
+                self.soundBtn.image = util.iconSoundOn
+            else:
+                self.soundBtn.image = util.iconSoundOff
+            self.soundBtn.textColor, self.soundBtn.textHoverColor, self.soundBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+
+            ###
+            # DO ZMIANY
+            ###
+
+            self.lengthBtn = util.ToggleButton(self.buttonSurface, Rect(300, 395, 300, 40))
+            self.lengthBtn.states, self.lengthBtn.font = ["Czas gry: Zwykly", "Czas gry: Blyskawiczny"], self.fnt36
+            self.lengthBtn.textShadowRect = (1, 1)
+            self.lengthBtn.textColor, self.lengthBtn.textHoverColor, self.lengthBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+
+            self.notationBtn = util.ToggleButton(self.buttonSurface, Rect(300, 445, 300, 40))
+            self.notationBtn.states, self.notationBtn.font = ["Notacja: Klasyczna", "Notacja: Dluga"], self.fnt36
+            self.notationBtn.textShadowRect = (1, 1)
+            self.notationBtn.textColor, self.notationBtn.textHoverColor, self.notationBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+
+            b = util.Button(self.buttonSurface, Rect(300, 600, 300, 55), lambda: pressButton("online"))
+            b.text, b.font = "Graj", self.fnt48
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+        def initPlayerMenu():
+            util.clearButtons()
+            self.soundBtn = util.Button(self.buttonSurface, Rect(830, 15, 48, 48), lambda: util.clickSound(self.soundBtn))
+            if util.isSoundOn:
+                self.soundBtn.image = util.iconSoundOn
+            else:
+                self.soundBtn.image = util.iconSoundOff
+            self.soundBtn.textColor, self.soundBtn.textHoverColor, self.soundBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+
+            self.lengthBtn = util.ToggleButton(self.buttonSurface, Rect(300, 395, 300, 40))
+            self.lengthBtn.states, self.lengthBtn.font = ["Czas gry: Zwykly", "Czas gry: Blyskawiczny"], self.fnt36
+            self.lengthBtn.textShadowRect = (1, 1)
+            self.lengthBtn.textColor, self.lengthBtn.textHoverColor, self.lengthBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+
+            self.notationBtn = util.ToggleButton(self.buttonSurface, Rect(300, 445, 300, 40))
+            self.notationBtn.states, self.notationBtn.font = ["Notacja: Klasyczna", "Notacja: Dluga"], self.fnt36
+            self.notationBtn.textShadowRect = (1, 1)
+            self.notationBtn.textColor, self.notationBtn.textHoverColor, self.notationBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+
+            b = util.Button(self.buttonSurface, Rect(300, 600, 300, 55), lambda: pressButton("player"))
+            b.text, b.font = "Graj", self.fnt48
+            b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
+            b.shadowAlpha = 66
+
+
+        self.soundBtn = util.Button(self.buttonSurface, Rect(830, 15, 48, 48), lambda: util.clickSound(self.soundBtn))
+        if util.isSoundOn:
+            self.soundBtn.image = util.iconSoundOn
+        else:
+            self.soundBtn.image = util.iconSoundOff
+        self.soundBtn.textColor, self.soundBtn.textHoverColor, self.soundBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
         b = util.Button(self.buttonSurface, Rect(300, 360, 300, 55), lambda: initComputerMenu())
         b.text, b.font = "Vs. Komputer", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
-        b = util.Button(self.buttonSurface, Rect(300, 420, 300, 55), lambda: pressButton("online"))
+        b = util.Button(self.buttonSurface, Rect(300, 420, 300, 55), lambda: initOnlineMenu())
         b.text, b.font = "Przez siec", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
-        b = util.Button(self.buttonSurface, Rect(250, 480, 400, 55), lambda: pressButton("player"))
+        b = util.Button(self.buttonSurface, Rect(250, 480, 400, 55), lambda: initPlayerMenu())
         b.text, b.font = "Lokalne PvP", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
@@ -113,11 +197,8 @@ class Menu:
             util.update()
             pygame.display.flip()
 
-        util.currentButtons = []
-        return self.state
-    
-    
-
+        util.clearButtons()
+        return self.gameMode, self.gameLength, self.notationType, self.algorithm, self.difficulty
 
 
 def show_menu(screen):

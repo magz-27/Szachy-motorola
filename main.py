@@ -32,11 +32,13 @@ captureMarkerDark = pygame.image.load("graphics/marker_capture_black.png")
 specialMarkerDark = pygame.image.load("graphics/marker_special_black.png")
 
 iconExit = pygame.image.load("graphics/icon_exit.png")
-iconSound = pygame.image.load("graphics/icon_sound.png")
+iconSoundOn = pygame.image.load("graphics/icon_sound_on.png")
+iconSoundOff = pygame.image.load("graphics/icon_sound_off.png")
 iconStats = pygame.image.load("graphics/icon_stats.png")
 iconCopy = pygame.image.load("graphics/icon_copy.png")
 iconScrollUp = pygame.image.load("graphics/icon_scrollup.png")
 iconScrollDown = pygame.image.load("graphics/icon_scrolldown.png")
+
 
 pygame.display.set_icon(icon_pygame)
 
@@ -90,6 +92,7 @@ actualTimer2 = 0
 secondsPassed = 0
 framesPassed = 0
 scroll = 0
+isSpeedGame = False
 
 scrollUpBtn = None
 scrollDownBtn = None
@@ -128,7 +131,7 @@ turnSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA
 gameResultSurface = pygame.Surface((screen.get_width(), screen.get_height()), SRCALPHA)
 notesSurface = pygame.Surface((615, 110), SRCALPHA)
 
-# Pawn promotion test board
+#Pawn promotion test board
 # board = ["bR", "bN", "bB", "bQ", "bK", "bB", "", "",
 #          "bP", "bP", "bP", "bP", "bP", "bP", "wP", "wP",
 #          "", "", "", "", "", "", "", "",
@@ -148,33 +151,41 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 
-game_mode = None
+gameMode = None
+algorithm = None
 
 run = True
 
-menu_options = None
 
 def showMenu():
-    global player1, player2, vs_computer, game_mode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds
-    menu_options = menu.show_menu(screen)
-    game_mode = menu_options["selected_option"]
-    minimaxSearchDepth = minimaxEasySearchDepth if menu_options["difficulty"] == "easy" else minimaxHardSearchDepth
-    mctsTimeLimitMiliseconds = mctsEasyTimeLimitMiliseconds if menu_options["difficulty"] == "easy" else mctsHardTimeLimitMiliseconds
+    global player1, player2, vs_computer, gameMode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame
 
-    if game_mode == "quit":
+    gameMode, isSpeedGame, useLongNotation, algorithm, difficulty = menu.show_menu(screen)
+
+    if difficulty == 1:
+        minimaxSearchDepth = 1
+        mctsTimeLimitMiliseconds = 1000
+    elif difficulty == 2:
+        minimaxSearchDepth = 2
+        mctsTimeLimitMiliseconds = 2000
+    elif difficulty == 3:
+        minimaxSearchDepth = 3
+        mctsTimeLimitMiliseconds = 3000
+
+    if gameMode == "quit":
         pygame.quit()
         exit()
-    elif game_mode == "computer":
-        player1 = "Player 1"
-        player2 = "Computer"
+    elif gameMode == "computer":
+        player1 = "Gracz 1"
+        player2 = "Komputer"
         vs_computer = True
-    elif game_mode == "online":
-        player1 = "Player 1"
-        player2 = "Online Player"
+    elif gameMode == "online":
+        player1 = "Gracz 1"
+        player2 = "Gracz 2"
         vs_computer = False
-    elif game_mode == "player":
-        player1 = "Player 1"
-        player2 = "Player 2"
+    elif gameMode == "player":
+        player1 = "Gracz 1"
+        player2 = "Gracz 2"
         vs_computer = False
 
 
@@ -197,7 +208,7 @@ def handleComputerMove(board, color, depth):
     startTime = pygame.time.get_ticks()
 
 
-    if (menu_options["algorithm"] == "minimax"):
+    if (algorithm == "minimax"):
         result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
         lastMinimaxScore = result[0]
     else:
@@ -328,6 +339,19 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         checkMate = currentPlayer
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
+    # Play sound
+    if checkMate:
+        util.playSound(util.soundCheckMate)
+    elif whiteInCheck or blackInCheck:
+        util.playSound(util.soundCheck)
+    elif endSquare.type.name != None:
+        util.playSound(util.soundCapture)
+    else:
+        if startSquare.type.color == "w":
+            util.playSound(util.soundMoveWhite)
+        else:
+            util.playSound(util.soundMoveBlack)
+
     drawTimers()
     drawNotes()
     renderBoard()
@@ -358,7 +382,7 @@ def clickSquare():
                     if possibleMoves.__contains__(hover) and selected is not None:
                         handlePieceMove(selected, hover)
 
-                        if game_mode == "computer":
+                        if gameMode == "computer":
                             if checkMate: return
                             awaitingMove = True
                             minimaxThread = threading.Thread(
@@ -387,7 +411,7 @@ def drawColorSquare(surface, coord, color):
 
 def resetBoard():
     global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, \
-        checkMate, isGameOver, selected, possibleMoves, timePassedThisMove, scroll
+        checkMate, isGameOver, selected, possibleMoves, timePassedThisMove, scroll, isSpeedGame
 
     if awaitingMove:
         return
@@ -395,8 +419,12 @@ def resetBoard():
     allMoves = []
     board = copy.deepcopy(initBoard)
     initPieceDictionary(board)
-    timer1 = 15 * 60 + 0.95
-    timer2 = 15 * 60 + 0.95
+    if isSpeedGame:
+        timer1 = 5 * 60 + 0.95
+        timer2 = 5 * 60 + 0.95
+    else:
+        timer1 = 10 * 60 + 0.95
+        timer2 = 10 * 60 + 0.95
     timePassedThisMove = 0
 
     currentPlayer = "w"
@@ -424,18 +452,25 @@ def restartGame():
     global framesPassed
     resetBoard()
     framesPassed = 0
-    util.currentButtons = []
+    util.clearButtons()
 
     showMenu()
     drawInit()
 
 
 def drawInit():
-    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn
+    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn, timer1, timer2
 
     initSurface.fill((0,0,0,0))
     # Border
     util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
+
+    if isSpeedGame:
+        timer1 = 5 * 60 + 0.95
+        timer2 = 5 * 60 + 0.95
+    else:
+        timer1 = 10 * 60 + 0.95
+        timer2 = 10 * 60 + 0.95
 
     # Draw the timers on start
     drawTimers()
@@ -508,7 +543,7 @@ def drawInit():
 
 
             # Undo computer's and own move
-            if game_mode == "computer" and not final:
+            if gameMode == "computer" and not final:
                 undo(True)
 
     def toggleNerdView():
@@ -550,9 +585,12 @@ def drawInit():
     b.image = iconExit
     b.textColor, b.textHoverColor, b.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
-    b = util.Button(buttonSurface, Rect(750, 30, 48, 48), lambda: print("Test"))
-    b.image = iconSound
-    b.textColor, b.textHoverColor, b.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
+    soundBtn = util.Button(buttonSurface, Rect(750, 30, 48, 48), lambda: util.clickSound(soundBtn))
+    if util.isSoundOn:
+        soundBtn.image = iconSoundOn
+    else:
+        soundBtn.image = iconSoundOff
+    soundBtn.textColor, soundBtn.textHoverColor, soundBtn.textClickColor = (0, 0, 0), (40, 40, 40), (80, 80, 80)
 
     b = util.Button(buttonSurface, Rect(685, 30, 48, 48), lambda: toggleNerdView())
     b.image = iconStats
@@ -704,7 +742,7 @@ def drawNotes():
 drawInit()
 
 while run:
-    if not game_mode: continue
+    if not gameMode: continue
     deltaTime = timer.tick(fps) / 1000
     mousePos = pygame.mouse.get_pos()
     screen.fill((250, 247, 240))
@@ -781,13 +819,17 @@ while run:
 
     # Nerd View
     if nerdViewVisible:
-        if game_mode == "computer":
-            if menu_options["algorithm"] == "minimax":
-                util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright", (0,0))
-                util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
+        if gameMode == "computer":
+            difficulties = {1: "Latwy", 2:"Sredni", 3:"Trudny"}
+            if algorithm == "minimax":
+                util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 4, screen.get_height() - 122), color_gray, "topright", (0,0))
+                util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 4, screen.get_height() - 102), color_gray, "topright", (0,0))
             else:
-                util.drawText(screen, "Ostatnio przeszukanych opcji: " + str(lastMctsSearchSize), fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
-        util.drawText(screen, "Mouse Pos: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
+                util.drawText(screen, "Ostatnio przeszukanych opcji: " + str(lastMctsSearchSize), fnt16, (screen.get_width() - 4, screen.get_height() - 102), color_gray, "topright", (0,0))
+            util.drawText(screen, "Poziom trudnosci: " + str(minimaxSearchDepth)+" ("+difficulties[minimaxSearchDepth]+")", fnt16,(screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright", (0, 0))
+
+        util.drawText(screen, "Tryb gry: " + str(gameMode), fnt16, (screen.get_width() - 4, screen.get_height() - 62), color_gray, "topright", (0,0))
+        util.drawText(screen, "Kursor: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
         util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright", (0,0))
 
     events = pygame.event.get()
