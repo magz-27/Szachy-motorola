@@ -9,8 +9,21 @@ mouseUp = False
 mousePressed = False
 mousePos = (0,0)
 useHandCursor = False
+isSoundOn = True
+
+
+soundButton = pygame.mixer.Sound("sounds/sound_button_click.mp3")
+soundMoveWhite = pygame.mixer.Sound("sounds/sound_move1.mp3")
+soundMoveBlack = pygame.mixer.Sound("sounds/sound_move2.mp3")
+soundCapture = pygame.mixer.Sound("sounds/sound_capture.mp3")
+soundCheck = pygame.mixer.Sound("sounds/sound_check.mp3")
+soundCheckMate = pygame.mixer.Sound("sounds/sound_checkmate.mp3")
+
+iconSoundOn = pygame.image.load("graphics/icon_sound_on.png")
+iconSoundOff = pygame.image.load("graphics/icon_sound_off.png")
 
 framesPassed = 0
+
 
 def drawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
     rect = Rect(rect)
@@ -91,6 +104,13 @@ def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(2, 2
 
 
 currentButtons = []
+currentToggleButtons = []
+
+
+def clearButtons():
+    global currentButtons, currentToggleButtons
+    currentButtons = []
+    currentToggleButtons = []
 
 
 def SineRect(rect, secondsPassed, sineAmplitude, sineSpeed):
@@ -106,6 +126,8 @@ class Button:
         self.surface = surface
         self.rect = Rect(rect)
         self.onClick = onClick
+        self.image = None
+        self.disabled = False
 
         self.defaultColor = (0,0,0,0)
         self.hoverColor = (0,0,0,0)
@@ -123,26 +145,87 @@ class Button:
         currentButtons.append(self)
 
 
+class ToggleButton:
+    hover = False
+    clicked = False
+
+    def __init__(self, surface, rect: pygame.Rect):
+        global currentButtons, renderButtons, buttonSurface
+        self.surface = surface
+        self.rect = Rect(rect)
+        self.currentState = 0
+        self.states = [""]
+
+        self.font = None
+        self.textColor = (255, 255, 255)
+        self.textHoverColor = (255, 255, 255)
+        self.textClickColor = (255, 255, 255)
+        self.textShadowRect = (2, 2)
+        self.shadowAlpha = 50
+
+        currentToggleButtons.append(self)
+
+
 def renderButtons():
     for b in currentButtons:
+        b.surface.fill((0,0,0,0))
+    for b in currentToggleButtons:
         b.surface.fill((0,0,0,0))
 
     for b in currentButtons:
         b : Button
         color = b.hoverColor if b.hover else b.defaultColor
-        color = b.clickColor if b.clicked and b.hover else color
+        color = Color(b.clickColor if b.clicked and b.hover else color)
 
         textColor = b.textHoverColor if b.hover else b.textColor
-        textColor = b.textClickColor if b.clicked and b.hover else textColor
+        textColor = Color(b.textClickColor if b.clicked and b.hover else textColor)
 
-        drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
+        if color.r != 0:drawRoundedRect(b.surface, (b.rect[0], b.rect[1], b.rect[2], b.rect[3]), color, b.radius, b.radius, b.radius, b.radius)
         if b.font != None: drawText(b.surface, b.text, b.font, (b.rect[0]+b.rect[2]/2, b.rect[1]+b.rect[3]/2, b.rect[2], b.rect[3]), textColor, "center" , b.textShadowRect, b.shadowAlpha)
+        if b.image != None:
+            img = b.surface.blit(b.image, (b.rect[0], b.rect[1]))
+            b.surface.fill(textColor, img, special_flags=BLEND_RGB_ADD)
+            if b.disabled: b.surface.fill((0,0,0,175), img, special_flags=BLEND_RGBA_SUB)
+
+    for b in currentToggleButtons:
+        b: ToggleButton
+        textColor = b.textHoverColor if b.hover else b.textColor
+        textColor = Color(b.textClickColor if b.clicked and b.hover else textColor)
+
+
+        if b.font != None:
+            drawText(b.surface, b.states[b.currentState], b.font, (b.rect[0] + b.rect[2] / 2, b.rect[1] + b.rect[3] / 2, b.rect[2], b.rect[3]),textColor, "center", b.textShadowRect, b.shadowAlpha)
 
 
 def handleButtonLogic():
     global mousePos, mousePressed, mouseDown, mouseUp, currentButtons, useHandCursor
 
     for b in currentButtons:
+        if b.rect.collidepoint(mousePos):
+            if b.disabled: return
+            h = b.hover
+            b.hover = True
+            useHandCursor = True
+            if not h:
+                renderButtons()
+            if mousePressed:
+                b.clicked = True
+            else:
+                b.clicked = False
+            if mouseDown:
+                playSound(soundButton)
+                b.onClick()
+                mouseDown = False
+                renderButtons()
+            if mouseUp:
+                renderButtons()
+        else:
+            h = b.hover
+            b.hover = False
+            if h:
+                renderButtons()
+
+    for b in currentToggleButtons:
         if b.rect.collidepoint(mousePos):
             h = b.hover
             b.hover = True
@@ -154,7 +237,8 @@ def handleButtonLogic():
             else:
                 b.clicked = False
             if mouseDown:
-                b.onClick()
+                playSound(soundButton)
+                b.currentState = (b.currentState + 1) % len(b.states)
                 renderButtons()
             if mouseUp:
                 renderButtons()
@@ -163,6 +247,7 @@ def handleButtonLogic():
             b.hover = False
             if h:
                 renderButtons()
+
     return useHandCursor
 
 
@@ -177,12 +262,29 @@ def handleMouseLogic():
         else:
             mouseDown = True
         mousePressed = True
+        mouseUp = False
     else:
         if mousePressed:
             mouseUp = True
+        else:
+            mouseUp = False
         mousePressed = False
         mouseDown = False
     return mouseDown, mouseUp, mousePressed
+
+def clickSound(btn):
+    global isSoundOn
+    isSoundOn = not isSoundOn
+    if isSoundOn:
+        btn.image = iconSoundOn
+    else:
+        btn.image = iconSoundOff
+
+
+def playSound(sound, volume = 1):
+    if not isSoundOn: return
+    sound.set_volume(volume)
+    sound.play()
 
 
 def update():
