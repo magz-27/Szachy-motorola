@@ -96,106 +96,42 @@ class Type:
         return self.color == other.color and self.name == other.name
 
 
-def getAllMoves(board, color, direction, kingCoord, onlyLegal=False):
+def getAllMoves(board, color, direction, actual=False):
     moves = []
     for sq in board:
         if sq.type.color == color:
-            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, onlyLegal))
+            moves.extend(calculateMoves(board, sq.coord, sq.type.name, sq.type.color, direction, actual))
     return moves
 
-
-def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
-    global pieceDictionary
-
+def dictGetAllMoves(globalBoard, color, direction, actual=False):
     moves = []
     for key in pieceDictionary.keys():
         if key[0] != color:
             continue
         for sq in pieceDictionary[key].values():
-            moves.extend(calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, onlyLegal))
+            moves.extend(calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, actual))
     return moves
 
+def check(board):
+    light = getAllMoves(board, 'w', 1)
+    dark = getAllMoves(board, 'b', -1)
 
-def mctsGetAllMoves(globalBoard, color, kingCoord):
-    global pieceDictionary
+    l = None
+    d = None
 
-
-    moves = []
-    direction = 1 if color == "w" else -1
-    for key in pieceDictionary.keys():
-        if key[0] != color:
-            continue
-        for sq in pieceDictionary[key].values():
-            moves.extend([sq, move] for move in calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, True))
-    return moves
-
-def check(board, color, kingCoord):
-    # Checks only the squares that can attack the king, instead of every square on the board.
-    # Checks every direction from the king, if there's a piece in the way, stops checking in that direction
-    # Knights are checked separately, because they don't attack in a straight line
-
-    orthogonalDir = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    diagonalDir = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
-    knightDir = [(1, 2), (-1, 2), (1, -2), (-1, -2), (2, 1), (-2, 1), (2, -1), (-2, -1)]
-    x = kingCoord[0]
-    y = kingCoord[1]
-    enem = "b" if color == "w" else "w"
-
-    isSafe = True
-
-    for d in orthogonalDir:
-        i = 1
-        while True:
-            testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
-
-            # Stops checking if the square is off the board
-            if testSq == None: break
-
-            if testSq.type.color == color:
-                break
-            if testSq.type.color == enem and (testSq.type.name == "r" or testSq.type.name == "q"):
-                isSafe = False
-                break
-            if testSq.type.color == enem and (testSq.type.name == "k" and i == 1):
-                isSafe = False
-                break
-            if testSq.type.name != None:
-                break
-            i += 1
-
-    for d in diagonalDir:
-        i = 1
-        while True:
-            testSq = getBoardFromCoord(board, (x + d[0] * i, y + d[1] * i))
-
-            # Stops checking if the square is off the board
-            if testSq == None: break
-
-            if testSq.type.color == color:
-                break
-            if testSq.type.color == enem and (testSq.type.name == "b" or testSq.type.name == "q"):
-                isSafe = False
-                break
-            if testSq.type.color == enem and (testSq.type.name == "k" or testSq.type.name == "p") and i == 1:
-                isSafe = False
-                break
-            if testSq.type.name != None:
-                break
-            i += 1
-
-    for d in knightDir:
-        testSq = getBoardFromCoord(board, (x + d[0], y + d[1]))
-
-        # Stops checking if the square is off the board
-        if testSq == None: continue
-
-        if testSq.type.color == enem and testSq.type.name == "n":
-            isSafe = False
-
-    return not isSafe
+    for m in light:
+        if m.type.name == "k":
+            l = m
+    for m in dark:
+        if m.type.name == "k":
+            d = m
+    if l and d: return l,d
+    elif l: return l
+    elif d: return d
+    return None
 
 
-def calculateMoves(board, coord, name, color, direction, kingCoord, onlyLegal=False):
+def calculateMoves(board, coord, name, color, direction, actual=False):
     moves = []
 
     # Pawn movement
@@ -365,8 +301,8 @@ def calculateMoves(board, coord, name, color, direction, kingCoord, onlyLegal=Fa
 
     # Queen movement
     if name == "q":
-        moves.extend(calculateMoves(board, coord,"r", color, direction, kingCoord))
-        moves.extend(calculateMoves(board, coord, "b", color, direction, kingCoord))
+        moves.extend(calculateMoves(board, coord,"r", color, direction))
+        moves.extend(calculateMoves(board, coord, "b", color, direction))
 
     # King movement
     if name == "k":
@@ -411,19 +347,19 @@ def calculateMoves(board, coord, name, color, direction, kingCoord, onlyLegal=Fa
             if sq.type.color != color: moves.append(sq)
 
     newMoves = []
-    if onlyLegal:
+    if actual:
         for m in moves:
             b = movePiece(board, getBoardFromCoord(board, coord), m)
-            if name == "k":
-                kingCoord = m.coord
-
-            if not check(b, color, kingCoord): newMoves.append(m)
-
+            ch = check(b)
+            if ch == None: newMoves.append(m)
+            else:
+                if type(ch) is not tuple:
+                    if ch.type.color != color: newMoves.append(m)
     else: newMoves = moves
     return newMoves
 
 
-def movePiece(sourceBoard, sq1, sq2, updateDict = False, pawnPromotion = False):
+def movePiece(sourceBoard, sq1, sq2, updateDict = False):
     global pieceDictionary
     board = [Square(i.rect, i.coord, i.type) for i in sourceBoard]
 
@@ -438,35 +374,23 @@ def movePiece(sourceBoard, sq1, sq2, updateDict = False, pawnPromotion = False):
         key = endSquare.type.color + endSquare.type.name
         del pieceDictionary[key][endPosition]
 
-    key = startSquare.type.color + startSquare.type.name
     if updateDict:
         # log piece move
-        pieceDictionary[key][startPosition].coord = endPosition
+        key = startSquare.type.color + startSquare.type.name
         pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
         del pieceDictionary[key][startPosition]
 
-    # pawn promotion
-    if pawnPromotion and startSquare.type.name == "p":
-        if (endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b"):
-            if updateDict:
-                del pieceDictionary[key][endPosition]
-                pieceDictionary[startSquare.type.color + "q"][endPosition] = startSquare
-            startSquare.type.name = "q"
-
     # move a piece to its destination
-    endSquare.type = startSquare.type
+    getBoardFromCoord(board, endPosition).type = startSquare.type
     startSquare.type = Type(None, None)
 
-
     return board
-
 
 # logs changes done with overridingMovePiece() in format:
 # [ [startSquare, endSquare, endType], ... ]
 changesStack = []
 
 # moves given piece without creating a new board, modifies the current one instead.
-# always updates the piece dictionary
 def overridingMovePiece(board, sq1, sq2):
     global pieceDictionary
     global changesStack
@@ -479,35 +403,21 @@ def overridingMovePiece(board, sq1, sq2):
 
     changesStack.append([startSquare, endSquare, endSquare.type])
 
-
-    # if a piece is taken:
+    # always update dictionary
     if (endSquare.type.name != None):
-        # remove piece from the piece dictionary:
+        # remove piece from global dictionary:
         key = endSquare.type.color + endSquare.type.name
-        del pieceDictionary[key][endPosition]
-
+        del pieceDictionary[key][endSquare.coord]
+        
     key = startSquare.type.color + startSquare.type.name
+    pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
+    del pieceDictionary[key][startPosition]
 
-    # remove piece from starting square
-    if (startPosition != endPosition):
-        del pieceDictionary[key][startPosition]
-
-    
-    # pawn promotion:
-    if startSquare.type.name == "p" and ((endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b")):
-        changesStack.append([startSquare, startSquare, Type("promotion", startSquare.type.color)])
-
-        pieceDictionary[startSquare.type.color + "q"][endPosition] = Square(endSquare.rect, endPosition, Type("q", startSquare.type.color))
-
-        endSquare.type = Type("q", startSquare.type.color)
-    else:
-        # put piece in the end square
-        pieceDictionary[key][endPosition] = endSquare
-        endSquare.type = startSquare.type
-    
+    endSquare.type = startSquare.type
     startSquare.type = Type(None, None)
 
     return board
+
 
 def undoLastOverride():
     global pieceDictionary
@@ -516,63 +426,14 @@ def undoLastOverride():
     # change = [startSquare, endSquare, endType]
     change = changesStack.pop()
 
-    undoPawnPromotion = False
-    if change[2].name == "promotion":
-        undoPawnPromotion = True
-        change[2] = Type("q", change[2].type.color)
-
-
     change[0].type = change[1].type
     change[1].type = change[2]
 
-    # update the piece dictionary
+    # update piece dictionary
     key = change[0].type.color + change[0].type.name
-    del pieceDictionary[key][change[1].coord]
     pieceDictionary[key][change[0].coord] = change[1]
+    del pieceDictionary[key][change[1].coord]
 
     if change[2] != Type(None, None):
         key = change[2].color + change[2].name
         pieceDictionary[key][change[1].coord] = change[1]
-
-    if undoPawnPromotion:
-        # after undoing the change of piece type, undo change of piece position
-        undoLastOverride()
-
-
-def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDirection = False):
-    isWhiteInCheck = check(board, "w", kingWhiteCoord)
-    isBlackInCheck = check(board, "b", kingBlackCoord)
-    whiteMoveCount = len(getAllMoves(board, "w", -1 if reverseDirection else 1, kingWhiteCoord, True))
-    blackMoveCount = len(getAllMoves(board, "b", 1 if reverseDirection else -1, kingBlackCoord, True))
-
-    if blacksTurn:
-        if blackMoveCount == 0:
-            if isBlackInCheck:
-                # white won
-                return "w"
-            
-            # draw by stalemate
-            return "d"
-    else:
-        if whiteMoveCount == 0:
-            if isWhiteInCheck:
-                # black won
-                return "b"
-            
-            # draw by stalemate
-            return "d"
-    
-    # game has not ended yet
-    return "0"
-
-def debugPreviewBoard(board):
-    for i in range(8):
-        str = ""
-        for j in range(8):
-            piece = board[8*i + j]
-            if piece.type.color == None:
-                str += "__ "
-            else:
-                str += piece.type.name + piece.type.color + " "
-        print(str)
-    print("-------------------------")
