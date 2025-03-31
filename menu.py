@@ -254,17 +254,17 @@ class HostMenu:
         
         # Przyciski wyboru
         b = util.Button(self.buttonSurface, Rect(300, 350, 300, 55), lambda: pressButton("host"))
-        b.text, b.font = "Hostuj grę", self.fnt48
+        b.text, b.font = "Hostuj gre", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
         b = util.Button(self.buttonSurface, Rect(280, 430, 340, 55), lambda: pressButton("client"))
-        b.text, b.font = "Dołącz do gry", self.fnt48
+        b.text, b.font = "Dolacz do gry", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
         b = util.Button(self.buttonSurface, Rect(300, 520, 300, 55), lambda: pressButton("back"))
-        b.text, b.font = "Powrót", self.fnt48
+        b.text, b.font = "Powrot", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 

@@ -177,58 +177,7 @@ algorithm = None
 run = True
 
 
-if game_mode == "quit":
-    pygame.quit()
-    exit()
-elif game_mode == "computer":
-    player1 = "Player 1"
-    player2 = "Computer"
-    vs_computer = True
-elif game_mode == "online":
-    player1 = "Player 1"
-    player2 = "Online Player"
-    vs_computer = False
-elif game_mode == "player":
-    player1 = "Player 1"
-    player2 = "Player 2"
-    vs_computer = False
-if game_mode == "online":
-    # Get network configuration from the host menu
-    network_config = menu.show_host_menu(screen)
-    
-    if isinstance(network_config, dict):
-        if network_config["mode"] == "host":
-            network_game = ChessNetworkGame(
-                is_host=True, 
-                host=network_config["host"], 
-                port=network_config["port"]
-            )
-            player1 = "Host"
-            player2 = "Client"
-            computerColor = None  # No computer player in network mode
-        else:
-            network_game = ChessNetworkGame(
-                is_host=False, 
-                host=network_config["host"], 
-                port=network_config["port"]
-            )
-            player1 = "Client"
-            player2 = "Host"
-            computerColor = None  # No computer player in network mode
-    else:
-        # User selected back or quit, return to main menu
-        game_mode = menu.show_menu(screen)
 
-# if game_mode == "online" and not host_choice:
-#     # Odwróć planszę dla klienta (grającego czarnymi)
-#     board = ["wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR",
-#              "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
-#              "", "", "", "", "", "", "", "",
-#              "", "", "", "", "", "", "", "",
-#              "", "", "", "", "", "", "", "",
-#              "", "", "", "", "", "", "", "",
-#              "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
-#              "bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR"]
 
 
 def show_network_dialog(screen, message, option1="Yes", option2="No"):
@@ -305,7 +254,7 @@ def show_network_dialog(screen, message, option1="Yes", option2="No"):
     return result
 
 # Add a toggle button for network nerd view
-if game_mode == "online" and network_game:
+if gameMode == "online" and network_game:
     b = util.Button(buttonSurface, Rect(605, 625, 180, 25), lambda: toggle_network_nerd_view())
     b.text, b.font = "Network Stats", fnt16
     b.radius = 8
@@ -321,7 +270,7 @@ util.renderButtons()
 
 
 def showMenu():
-    global player1, player2, vs_computer, gameMode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame
+    global player1, player2, vs_computer, gameMode, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame
 
     gameMode, isSpeedGame, useLongNotation, algorithm, difficulty = menu.show_menu(screen)
 
@@ -350,6 +299,44 @@ def showMenu():
         player1 = "Gracz 1"
         player2 = "Gracz 2"
         vs_computer = False
+
+    if gameMode == "online":
+        # Get network configuration from the host menu
+        network_config = menu.show_host_menu(screen)
+    
+        if isinstance(network_config, dict):
+            if network_config["mode"] == "host":
+                network_game = ChessNetworkGame(
+                    is_host=True, 
+                    host=network_config["host"], 
+                    port=network_config["port"]
+                )
+                player1 = "Host"
+                player2 = "Client"
+                computerColor = None  # No computer player in network mode
+            else:
+                network_game = ChessNetworkGame(
+                    is_host=False, 
+                    host=network_config["host"], 
+                    port=network_config["port"]
+                )
+                player1 = "Client"
+                player2 = "Host"
+                computerColor = None  # No computer player in network mode
+        else:
+            # User selected back or quit, return to main menu
+            gameMode = menu.show_menu(screen)
+
+# if gameMode == "online" and not host_choice:
+#     # Odwróć planszę dla klienta (grającego czarnymi)
+#     board = ["wR", "wN", "wB", "wK", "wQ", "wB", "wN", "wR",
+#              "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
+#              "", "", "", "", "", "", "", "",
+#              "", "", "", "", "", "", "", "",
+#              "", "", "", "", "", "", "", "",
+#              "", "", "", "", "", "", "", "",
+#              "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
+#              "bR", "bN", "bB", "bK", "bQ", "bB", "bN", "bR"]
 
 
 showMenu()
@@ -520,7 +507,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         if currentPlayer == computerColor:
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
-    if game_mode == "online" and network_game and network_game.connected:
+    if gameMode == "online" and network_game and network_game.connected:
         # Only send move if it's our turn
         if (network_game.is_host and currentPlayer == "w") or (not network_game.is_host and currentPlayer == "b"):
             network_game.send_move(startSquare, endSquare)
@@ -587,7 +574,7 @@ def clickSquare():
     global awaitingMove, board, selected, possibleMoves, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
     for sq in board:
         # Draw a select marker
-        if game_mode == "online" and network_game:
+        if gameMode == "online" and network_game:
         # Host może ruszać się tylko białymi figurami
             if network_game.is_host and currentPlayer != "w":
                 return
@@ -641,7 +628,7 @@ def drawColorSquare(surface, coord, color):
         rds = (0, 0, 0, 16)
 
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
-if game_mode == "online" and network_game and not network_game.is_host:
+if gameMode == "online" and network_game and not network_game.is_host:
     # Odwróć współrzędne planszy dla klienta (grającego czarnymi)
     for i in range(8):
         for j in range(8):
@@ -712,35 +699,7 @@ def restartGame():
     showMenu()
     drawInit()
 
-
-
-def drawInit():
-    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn, timer1, timer2
-
-    initSurface.fill((0,0,0,0))
-    # Border
-    util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
-
-    if isSpeedGame:
-        timer1 = 5 * 60 + 0.95
-        timer2 = 5 * 60 + 0.95
-    else:
-        timer1 = 10 * 60 + 0.95
-        timer2 = 10 * 60 + 0.95
-
-    # Draw the timers on start
-    drawTimers()
-    drawNotes()
-
-    # Player names
-    util.drawText(initSurface, player1, fnt56, (60, 615), color_gray)
-    util.drawText(initSurface, player2, fnt56, (60, 20), color_gray)
-
-    # Algebraic notes
-    util.drawRoundedRect(initSurface, (605, 100, 250, 125), color_checkerwhite, 16, 16, 16, 16)
-
-    # Buttons
-    def undo(final = False):
+def undo(final = False):
         global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1,\
             timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord, scroll
 
@@ -801,8 +760,35 @@ def drawInit():
             # Undo computer's and own move
             if gameMode == "computer" and not final:
                 undo(True)
-            if game_mode=="online":
+            if gameMode=="online":
                 undo(True)
+
+def drawInit():
+    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn, timer1, timer2
+
+    initSurface.fill((0,0,0,0))
+    # Border
+    util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
+
+    if isSpeedGame:
+        timer1 = 5 * 60 + 0.95
+        timer2 = 5 * 60 + 0.95
+    else:
+        timer1 = 10 * 60 + 0.95
+        timer2 = 10 * 60 + 0.95
+
+    # Draw the timers on start
+    drawTimers()
+    drawNotes()
+
+    # Player names
+    util.drawText(initSurface, player1, fnt56, (60, 615), color_gray)
+    util.drawText(initSurface, player2, fnt56, (60, 20), color_gray)
+
+    # Algebraic notes
+    util.drawRoundedRect(initSurface, (605, 100, 250, 125), color_checkerwhite, 16, 16, 16, 16)
+
+    # Buttons
 
     def toggleNerdView():
         global nerdViewVisible
@@ -1105,7 +1091,7 @@ while run:
     # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
     util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 28, screen.get_height() - 36), color_gray, "topright", (0,0))
    
-    if game_mode == "online" and network_game:
+    if gameMode == "online" and network_game:
         network_event = network_game.handle_network_events(board)
     
         if network_event == "UNDO_REQUEST":
@@ -1138,11 +1124,11 @@ while run:
             handlePieceMove(start_square, end_square)
 
 # Draw network nerd view if enabled
-    if game_mode == "online" and network_game and network_nerd_view_visible:
+    if gameMode == "online" and network_game and network_nerd_view_visible:
         draw_network_nerd_view(screen, network_game, fnt16, fnt26, color_gray)
 
     # Clean up network connection on exit
-    if game_mode == "online" and network_game:
+    if gameMode == "online" and network_game:
         network_game.close_connection()
     # Nerd View
     if nerdViewVisible:
