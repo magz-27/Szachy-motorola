@@ -1,5 +1,7 @@
 import cProfile
 import math as pymath
+import sys
+
 import pygame
 #import pyperclip
 from pygame.locals import *
@@ -174,7 +176,7 @@ def showMenu():
 
     if gameMode == "quit":
         pygame.quit()
-        exit()
+        sys.exit()
     elif gameMode == "computer":
         player1 = "Gracz 1"
         player2 = "Komputer"
@@ -247,7 +249,7 @@ def renderBoard():
     if blackInCheck: drawColorSquare(boardSurface, kingBlackCoord, (255, 90, 84, 64))
 
     if (whiteInCheck or blackInCheck) and not isGameOver:
-        util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,"center")
+        util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 350), color_gray,"center")
 
     # Render pieces
     for sq in board:
@@ -334,10 +336,13 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         allMoves[len(allMoves)-1] = (lastMove[0], lastMove[1], lastMove[2], True)
 
     #checkmate
-    #print(getAllMoves(board, currentPlayer, dir, True))
     if not getAllMoves(board, currentPlayer, dir, kingCoord, True):
-        checkMate = currentPlayer
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+        if currentPlayer == "b" and not blackInCheck or currentPlayer == "w" and not whiteInCheck:
+            # Stalemate
+            checkMate = "s"
+        else:
+            checkMate = currentPlayer
 
     # Play sound
     if checkMate:
@@ -786,12 +791,16 @@ while run:
         possibleMoves = []
         renderBoard()
         if checkMate == "w":
-            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
-            util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
 
         if checkMate == "b":
-            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
-            util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
+
+        if checkMate == "s":
+            util.drawText(gameResultSurface, "Pat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Remis!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
 
     # End game by time over
     if timer1 <= 0 and not isGameOver:
@@ -799,10 +808,10 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 345),
                       color_gray,"center")
         util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26,
-                      (screen.get_width() - 173, screen.get_height() - 315),
+                      (screen.get_width() - 173, screen.get_height() - 305),
                       color_gray, "center")
 
     if timer2 <= 0 and not isGameOver:
@@ -810,11 +819,11 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 345),
                       color_gray,
                       "center")
         util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26,
-                      (screen.get_width() - 173, screen.get_height() - 315),
+                      (screen.get_width() - 173, screen.get_height() - 305),
                       color_gray, "center")
 
     # Nerd View
