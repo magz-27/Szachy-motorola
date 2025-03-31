@@ -257,11 +257,11 @@ if game_mode == "online" and network_game:
     b.textShadowRect = (1, 1)
     b.defaultColor, b.hoverColor, b.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
     
-    def toggle_network_nerd_view():
+def toggle_network_nerd_view():
         global network_nerd_view_visible
         network_nerd_view_visible = not network_nerd_view_visible
     
-    util.renderButtons()
+util.renderButtons()
 
 
 
@@ -424,6 +424,10 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         if currentPlayer == computerColor:
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
+    if game_mode == "online" and network_game and network_game.connected:
+        # Only send move if it's our turn
+        if (network_game.is_host and currentPlayer == "w") or (not network_game.is_host and currentPlayer == "b"):
+            network_game.send_move(startSquare, endSquare)
 
     allMoves.append((startSquare, endSquare, timePassedThisMove))
     timePassedThisMove = 0
@@ -435,10 +439,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
     dir = 1 if currentPlayer == "w" else -1
     drawTimers()
     drawNotes()
-    if game_mode == "online" and network_game and network_game.connected:
-        # Only send move if it's our turn
-        if (network_game.is_host and currentPlayer == "w") or (not network_game.is_host and currentPlayer == "b"):
-            network_game.send_move(startSquare, endSquare)
+    
 
     #check
     isCheck = check(board)
@@ -455,6 +456,13 @@ def clickSquare():
     global awaitingMove, board, selected, possibleMoves, currentPlayer, isCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
     for sq in board:
         # Draw a select marker
+        if game_mode == "online" and network_game:
+        # Host może ruszać się tylko białymi figurami
+            if network_game.is_host and currentPlayer != "w":
+                return
+            # Klient może ruszać się tylko czarnymi figurami
+            if not network_game.is_host and currentPlayer != "b":
+                return
         if sq == selected:
             screen.blit(selectMarker, sq.rect)
         if mouseDown and not awaitingMove:
@@ -498,7 +506,26 @@ def drawColorSquare(surface, coord, color):
         rds = (0, 0, 0, 16)
 
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
+if game_mode == "online" and network_game and not network_game.is_host:
+    # Odwróć współrzędne planszy dla klienta (grającego czarnymi)
+    for i in range(8):
+        for j in range(8):
+            current = j+i*8
+            
+            if isinstance(board[current], Square):
+                board[current].rect = Rect(
+                    boardCoords[0] + (7-j) * squareSize, 
+                    boardCoords[1] + (7-i) * squareSize, 
+                    squareSize, 
+                    squareSize
+                )
+                board[current].coord = (7-j, 7-i)
+           
+    
 
+initBoard = [i for i in board]
+
+initPieceDictionary(board)
 def drawInit():
     global initSurface
 
@@ -748,10 +775,7 @@ while run:
     if framesPassed == 1:
         mouseDown = False
         deltaTime = 0
-    if game_mode == "online" and network_game:
-        print(f"Obecny stan: {currentPlayer}, Host: {network_game.is_host}")
-        network_event = network_game.handle_network_events(board)
-        print(f"Odebrane zdarzenie: {network_event}")
+    
 
     util.useHandCursor = False
     secondsPassed += deltaTime
@@ -857,18 +881,18 @@ while run:
             handlePieceMove(start_square, end_square)
 
 # Draw network nerd view if enabled
-if game_mode == "online" and network_game and network_nerd_view_visible:
-    draw_network_nerd_view(screen, network_game, fnt16, fnt26, color_gray)
+    if game_mode == "online" and network_game and network_nerd_view_visible:
+        draw_network_nerd_view(screen, network_game, fnt16, fnt26, color_gray)
 
-# Clean up network connection on exit
-if game_mode == "online" and network_game:
-    network_game.close_connection()
-    # Nerd View
+    # Clean up network connection on exit
+    if game_mode == "online" and network_game:
+        network_game.close_connection()
+        # Nerd View
     if nerdViewVisible:
-        util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 28, screen.get_height() - 72), color_gray, "topright", (0,0))
-        util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 28, screen.get_height() - 54), color_gray, "topright", (0,0))
+            util.drawText(screen, "Wynik minimax: " + str(round(lastMinimaxScore, 2)), fnt16, (screen.get_width() - 28, screen.get_height() - 72), color_gray, "topright", (0,0))
+            util.drawText(screen, "Czas minimax: " + str(lastSearchDurationMiliseconds) + "ms", fnt16, (screen.get_width() - 28, screen.get_height() - 54), color_gray, "topright", (0,0))
 
-    # Board
+        # Board
     screen.blit(initSurface, (0,0))
     screen.blit(boardSurface, (0,0))
     screen.blit(buttonSurface, (0,0))
@@ -877,9 +901,9 @@ if game_mode == "online" and network_game:
     screen.blit(gameResultSurface, util.SineRect((0, 0), secondsPassed, 3, 8))
     screen.blit(notesSurface, (615, 110))
     if not isGameOver:
-        hoverSquare()
-        clickSquare()
-    
+            hoverSquare()
+            clickSquare()
+        
 
     util.update()
 
@@ -890,5 +914,5 @@ if game_mode == "online" and network_game:
             run = False
 
     pygame.display.flip()
-    pygame.draw.rect(screen, (255, 0, 0), (100, 100, 200, 200))
+    
 pygame.quit()
