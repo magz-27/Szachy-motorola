@@ -484,24 +484,25 @@ def overridingMovePiece(board, sq1, sq2):
     if (endSquare.type.name != None):
         # remove piece from the piece dictionary:
         key = endSquare.type.color + endSquare.type.name
-        del pieceDictionary[key][endSquare.coord]
+        del pieceDictionary[key][endPosition]
 
     key = startSquare.type.color + startSquare.type.name
 
-    pieceDictionary[key][startPosition].coord = endPosition
-    pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
-    del pieceDictionary[key][startPosition]
+    # remove piece from starting square
+    if (startPosition != endPosition):
+        del pieceDictionary[key][startPosition]
 
     
     # pawn promotion:
     if startSquare.type.name == "p" and ((endSquare.coord[1] == 0 and startSquare.type.color == "w") or (endSquare.coord[1] == 7 and startSquare.type.color == "b")):
         changesStack.append([startSquare, startSquare, Type("promotion", startSquare.type.color)])
 
-        del pieceDictionary[key][endPosition]
         pieceDictionary[startSquare.type.color + "q"][endPosition] = Square(endSquare.rect, endPosition, Type("q", startSquare.type.color))
 
         endSquare.type = Type("q", startSquare.type.color)
     else:
+        # put piece in the end square
+        pieceDictionary[key][endPosition] = endSquare
         endSquare.type = startSquare.type
     
     startSquare.type = Type(None, None)
@@ -516,9 +517,9 @@ def undoLastOverride():
     change = changesStack.pop()
 
     undoPawnPromotion = False
-    if change[2].type.name == "promotion":
+    if change[2].name == "promotion":
         undoPawnPromotion = True
-        change[2].type = Type("q", change[2].type.color)
+        change[2] = Type("q", change[2].type.color)
 
 
     change[0].type = change[1].type

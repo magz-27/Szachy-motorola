@@ -124,7 +124,7 @@ def minimax(board, color, kingWhiteCoord, kingBlackCoord, recursionsLeft, alphaB
         dir = 1 if color == "w" else -1
         possibleMoves = calculateMoves(board, square.coord, square.type.name, square.type.color, dir, kingCoord, True)
         for possibleMove in possibleMoves:
-            moves.append([square.coord, possibleMove.coord])
+            moves.append(copy.deepcopy([square.coord, possibleMove.coord]))
 
     bestMove = None
 
@@ -228,7 +228,8 @@ def mctsTraverse(board,node):
     color = "b" if node.blacksTurn else "w"
     dir = 1 if color == "w" else -1
 
-    availableMoves = getAllMoves(boardCopy, color, dir, findKingPosition(boardCopy, color), True)
+    availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(boardCopy, color))
+
     while len(node.children) == len(availableMoves):
         if node.move != None:
             boardCopy = movePiece(boardCopy, node.move[0], node.move[1])
@@ -239,9 +240,8 @@ def mctsTraverse(board,node):
         node = mctsUCT(node)
 
         color = "b" if node.blacksTurn else "w"
-        dir = 1 if color == "w" else -1
 
-        availableMoves = getAllMoves(boardCopy, color, dir, findKingPosition(boardCopy, color), True)
+        availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(boardCopy, color))
 
 
     return [boardCopy,node]
