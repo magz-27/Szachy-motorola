@@ -724,40 +724,17 @@ def drawNotes():
         last = count
 
 
-# def setup_network_game():
-    
-#     network_game= ChessNetworkGame(is_host=True)  # lub is_host=False
-    
-#     while run:
-#         # Standardowa logika gry
-#         if network_game:
-#             network_event = network_game.handle_network_events(board)
-            
-#             if network_event == 'UNDO_REQUEST':
-#                 # Wyświetl dialog z pytaniem o zgodę
-#                 undo_accepted = show_undo_dialog()
-#                 network_game.send_undo_response(undo_accepted)
-            
-#             elif network_event == 'UNDO_ACCEPTED':
-#                 # Cofnij ruch
-#                 undo()
-            
-#             elif network_event == 'UNDO_REJECTED':
-#                 # Powiadom gracza o odrzuceniu
-#                 show_undo_rejected_dialog()
-            
-#             elif isinstance(network_event, tuple):
-#                 # Wykonaj odebrany ruch
-#                 start_square, end_square = network_event
-#                 handlePieceMove(start_square,end_square )   
-# if game_mode=="online":
-#     setup_network_game();
+
 
 run = True
 
+print("Inicjalizacja szachownicy")
 drawInit()
+print("Szachownica zainicjalizowana")
 
+print("Renderowanie szachownicy")
 renderBoard()
+print("Szachownica wyrenderowana")
 
 while run:
     deltaTime = timer.tick(fps) / 1000
@@ -771,6 +748,10 @@ while run:
     if framesPassed == 1:
         mouseDown = False
         deltaTime = 0
+    if game_mode == "online" and network_game:
+        print(f"Obecny stan: {currentPlayer}, Host: {network_game.is_host}")
+        network_event = network_game.handle_network_events(board)
+        print(f"Odebrane zdarzenie: {network_event}")
 
     util.useHandCursor = False
     secondsPassed += deltaTime
@@ -842,65 +823,38 @@ while run:
     # util.drawText(screen, "Timer1: " + str(round(timer1, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 82), color_gray, "topright")
     # util.drawText(screen, "Timer2: " + str(round(timer2, 4)), fnt32, (screen.get_width() - 4, screen.get_height() - 52), color_gray, "topright")
     util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 28, screen.get_height() - 36), color_gray, "topright", (0,0))
-    # if game_mode == "online" and network_game:
-
-    #     def show_undo_dialog():
-    #         user_input = input("Przeciwnik prosi o cofnięcie ruchu. Zgodzić się? (tak/nie): ").strip().lower()
-    #         return user_input == "tak"
-
-    #     def show_undo_rejected_dialog():
-    #         print("Przeciwnik odrzucił cofnięcie ruchu.")
-
-    #     network_event = network_game.handle_network_events(board)
-        
-    #     if network_event == "UNDO_REQUEST":
-    #         # Zapytaj gracza, czy zgadza się na cofnięcie
-    #         undo_accepted = show_undo_dialog()
-    #         network_game.send_undo_response(undo_accepted)
-
-    #     elif network_event == "UNDO_ACCEPTED":
-    #         print("Cofanie ruchu...")
-    #         undo()  # Funkcja cofania ruchu
-
-    #     elif network_event == "UNDO_REJECTED":
-    #         print("Cofnięcie odrzucone.")
-    #         show_undo_rejected_dialog()
-
-    #     elif isinstance(network_event, tuple):
-    #         # Odebrano ruch przeciwnika – wykonaj go
-    #         start_square, end_square = network_event
-    #         handlePieceMove(start_square, end_square)
-if game_mode == "online" and network_game:
-    network_event = network_game.handle_network_events(board)
+   
+    if game_mode == "online" and network_game:
+        network_event = network_game.handle_network_events(board)
     
-    if network_event == "UNDO_REQUEST":
-        # Show dialog asking player for permission
-        undo_accepted = show_network_dialog(
-            screen, 
-            "Opponent requests to undo last move",
-            "Accept", 
-            "Decline"
-        )
-        network_game.send_undo_response(undo_accepted)
-        if undo_accepted:
-            undo(final=True)  # Undo the last move
-        
-    elif network_event == "UNDO_ACCEPTED":
-        # Opponent accepted our undo request
-        undo(final=True)
-        
-    elif network_event == "UNDO_REJECTED":
-        # Opponent rejected our undo request
-        show_network_dialog(screen, "Undo request declined", "OK", "")
-        
-    elif network_event == "CONNECTION_LOST":
-        # Connection lost - show message
-        show_network_dialog(screen, "Connection lost", "OK", "")
-        
-    elif isinstance(network_event, tuple):
-        # Received a move from opponent
-        start_square, end_square = network_event
-        handlePieceMove(start_square, end_square)
+        if network_event == "UNDO_REQUEST":
+            # Show dialog asking player for permission
+            undo_accepted = show_network_dialog(
+                screen, 
+                "Opponent requests to undo last move",
+                "Accept", 
+                "Decline"
+            )
+            network_game.send_undo_response(undo_accepted)
+            if undo_accepted:
+                undo(final=True)  # Undo the last move
+            
+        elif network_event == "UNDO_ACCEPTED":
+            # Opponent accepted our undo request
+            undo(final=True)
+            
+        elif network_event == "UNDO_REJECTED":
+            # Opponent rejected our undo request
+            show_network_dialog(screen, "Undo request declined", "OK", "")
+            
+        elif network_event == "CONNECTION_LOST":
+            # Connection lost - show message
+            show_network_dialog(screen, "Connection lost", "OK", "")
+            
+        elif isinstance(network_event, tuple):
+            # Received a move from opponent
+            start_square, end_square = network_event
+            handlePieceMove(start_square, end_square)
 
 # Draw network nerd view if enabled
 if game_mode == "online" and network_game and network_nerd_view_visible:
@@ -936,5 +890,5 @@ if game_mode == "online" and network_game:
             run = False
 
     pygame.display.flip()
-
+    pygame.draw.rect(screen, (255, 0, 0), (100, 100, 200, 200))
 pygame.quit()
