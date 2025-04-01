@@ -10,7 +10,7 @@ Napisany w Pythonie przy użyciu biblioteki PyGame. <br />
 • Tryb **Vs. Komputer** (algorytmy MiniMax i Monte Carlo Tree Search) <br />
 • Tryb **Online** (z możliwością hostowania i dołączania do gier) <br />
 • Tryb **lokalnego PvP** (gra między dwoma osobami na tym samym komputerze) <br />
-• Silnik szachowy uwzględniający wszystkie zasady gry w szachy, w tym ruchy specjalne <br />
+• Silnik szachowy uwzględniający wszystkie zasady gry w szachy <br />
 • Efekty dźwiękowe <br />
 • Zapisywanie ruchów w postaci notacji algebraicznej <br />
 • Możliwość cofania ruchów <br />
