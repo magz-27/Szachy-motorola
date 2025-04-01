@@ -7,6 +7,7 @@ import random
 # eg. pieceDictionary["wp"] is a list of all white pawns on board
 pieceDictionary = {}
 
+
 def initPieceDictionary(board):
     global pieceDictionary
 
@@ -25,14 +26,12 @@ def initPieceDictionary(board):
         pieceDictionary[key] = {square.coord: square}
 
 
-
 def getBoardFromCoord(board, coord):
     if coord[0] > 7 or coord[0] < 0 or coord[1] > 7 or coord[1] < 0:
         return None
     index = coord[0] + coord[1] * 8
     return board[index]
    
-
 
 def invertBoard(board):
     newBoard = []
@@ -122,7 +121,6 @@ def dictGetAllMoves(globalBoard, color, direction, kingCoord, onlyLegal=False):
 def mctsGetAllMoves(globalBoard, color, kingCoord):
     global pieceDictionary
 
-
     moves = []
     direction = 1 if color == "w" else -1
     for key in pieceDictionary.keys():
@@ -131,6 +129,7 @@ def mctsGetAllMoves(globalBoard, color, kingCoord):
         for sq in pieceDictionary[key].values():
             moves.extend([sq, move] for move in calculateMoves(globalBoard, sq.coord, sq.type.name, sq.type.color, direction, kingCoord, True))
     return moves
+
 
 def check(board, color, kingCoord):
     # Checks only the squares that can attack the king, instead of every square on the board.
@@ -441,8 +440,8 @@ def movePiece(sourceBoard, sq1, sq2, updateDict = False, pawnPromotion = False):
         key = endSquare.type.color + endSquare.type.name
         del pieceDictionary[key][endPosition]
 
-    key = startSquare.type.color + startSquare.type.name
     if updateDict:
+        key = startSquare.type.color + startSquare.type.name
         # log piece move
         pieceDictionary[key][startPosition].coord = endPosition
         pieceDictionary[key][endPosition] = pieceDictionary[key][startPosition]
@@ -460,13 +459,13 @@ def movePiece(sourceBoard, sq1, sq2, updateDict = False, pawnPromotion = False):
     endSquare.type = startSquare.type
     startSquare.type = Type(None, None)
 
-
     return board
 
 
 # logs changes done with overridingMovePiece() in format:
 # [ [startSquare, endSquare, endType], ... ]
 changesStack = []
+
 
 # moves given piece without creating a new board, modifies the current one instead.
 # always updates the piece dictionary
@@ -511,6 +510,7 @@ def overridingMovePiece(board, sq1, sq2):
     startSquare.type = Type(None, None)
 
     return board
+
 
 def undoLastOverride():
     global pieceDictionary
@@ -573,6 +573,7 @@ def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, whiteMove
     
     # game has not ended yet
     return "0", oppositeMoves
+
 
 def debugPreviewBoard(board):
     for i in range(8):

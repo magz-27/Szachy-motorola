@@ -1,16 +1,19 @@
 import math as pymath
-
 import pygame
 from pygame import *
 
-pygame.init()
 mouseDown = False
 mouseUp = False
 mousePressed = False
 mousePos = (0,0)
+framesPassed = 0
 useHandCursor = False
 isSoundOn = True
 
+currentButtons = []
+currentToggleButtons = []
+
+pygame.init()
 
 soundButton = pygame.mixer.Sound("sounds/sound_button_click.mp3")
 soundMoveWhite = pygame.mixer.Sound("sounds/sound_move1.mp3")
@@ -21,8 +24,6 @@ soundCheckMate = pygame.mixer.Sound("sounds/sound_checkmate.mp3")
 
 iconSoundOn = pygame.image.load("graphics/icon_sound_on.png")
 iconSoundOff = pygame.image.load("graphics/icon_sound_off.png")
-
-framesPassed = 0
 
 
 def drawRoundedRect(surface, rect, color, radiustopleft=0, radiustopright=0, radiusbottomleft=0, radiusbottomright=0, width=0):
@@ -103,18 +104,15 @@ def drawText(surface, text, fnt, rect, color, anchor="topleft", shadowRect=(2, 2
     surface.blit(text_surface, (r.topleft[0]-r.__getattribute__(anchor)[0]+rect[0], r.topleft[1]-r.__getattribute__(anchor)[1]+rect[1]))
 
 
-currentButtons = []
-currentToggleButtons = []
-
-
 def clearButtons():
     global currentButtons, currentToggleButtons
     currentButtons = []
     currentToggleButtons = []
 
 
+# Moves a rect up and down smoothly
 def SineRect(rect, secondsPassed, sineAmplitude, sineSpeed):
-    return (rect[0], rect[1]+pymath.sin(secondsPassed*sineSpeed) *sineAmplitude)
+    return rect[0], rect[1] + pymath.sin(secondsPassed * sineSpeed) * sineAmplitude
 
 
 class Button:
@@ -253,7 +251,9 @@ def handleButtonLogic():
 
 def handleMouseLogic():
     # mousePressed is true if mouse button is currently pressed
-    # mouseClick is true for a single frame when mouse is clicked
+
+    # mouseDown is true for a single frame when mouse button is clicked
+    # mouseUp works the same, but when mouse button is released
     global mouseDown, mouseUp, mousePressed
 
     if pygame.mouse.get_pressed()[0]:
@@ -272,6 +272,7 @@ def handleMouseLogic():
         mouseDown = False
     return mouseDown, mouseUp, mousePressed
 
+
 def clickSound(btn):
     global isSoundOn
     isSoundOn = not isSoundOn
@@ -281,7 +282,7 @@ def clickSound(btn):
         btn.image = iconSoundOff
 
 
-def playSound(sound, volume = 1):
+def playSound(sound, volume=1):
     if not isSoundOn: return
     sound.set_volume(volume)
     sound.play()

@@ -1,17 +1,15 @@
-import cProfile
-import math as pymath
 import pygame
-#import pyperclip
 from pygame.locals import *
+import sys
+import math as pymath
+import select
+import time
 import threading
 import util
-import copy
-
 from engine import *
-
-from ai_algorithms import *
 import menu
-
+from ai_algorithms import *
+from networkchess import *
 
 pygame.init()
 WIDTH = 900
@@ -21,6 +19,7 @@ pygame.display.set_caption("Chess")
 timer = pygame.time.Clock()
 fps = 60
 
+# Loading the icons
 icon_pygame = pygame.image.load('graphics/icon.png')
 selectMarker = pygame.image.load("graphics/select.png")
 
@@ -38,7 +37,6 @@ iconStats = pygame.image.load("graphics/icon_stats.png")
 iconCopy = pygame.image.load("graphics/icon_copy.png")
 iconScrollUp = pygame.image.load("graphics/icon_scrollup.png")
 iconScrollDown = pygame.image.load("graphics/icon_scrolldown.png")
-
 
 pygame.display.set_icon(icon_pygame)
 
@@ -69,13 +67,11 @@ pieceImages = {"Pawn Light": pygame.image.load('chessPieces/Pawn Light.png').con
 color_gray = (74, 73, 71)
 color_checkerwhite = (231, 225, 209)
 color_checkerblack = (194, 189, 174)
-
 color_bluetest = (0, 188, 212)
 color_redtest = (236, 70, 70)
 
+# game variables
 timePassedThisMove = 0
-drawCoords = False
-useLongNotation = False
 boardCoords = (50, 90)
 squareSize = 64
 mousePressed = False
@@ -85,6 +81,8 @@ player1 = "Gracz 1"
 player2 = "Komputer"
 hover: Square = None
 selected: Square = None
+scrollUpBtn = None
+scrollDownBtn = None
 timer1 = 15 * 60 + 0.95
 timer2 = 15 * 60 + 0.95
 actualTimer1 = 0
@@ -92,32 +90,37 @@ actualTimer2 = 0
 secondsPassed = 0
 framesPassed = 0
 scroll = 0
+
+drawCoords = False
 isSpeedGame = False
+useLongNotation = False
+nerdViewVisible = False
+gameMode = None
+algorithm = None
 
-scrollUpBtn = None
-scrollDownBtn = None
-
+# engine variables
 currentPlayer = 'w'
 computerColor = "b"
+kingWhiteCoord = None
+kingBlackCoord = None
 allMoves = []
 possibleMoves = []
 whiteInCheck = False
 blackInCheck = False
 checkMate = None
 isGameOver = False
-kingWhiteCoord = None
-kingBlackCoord = None
-nerdViewVisible = False
 
+network_game = None
+network_nerd_view_visible = False
+
+# algorithm variables
 minimaxSearchDepth = None
 minimaxEasySearchDepth = 2
 minimaxHardSearchDepth = 3
 awaitingMove = False
 minimaxThread = None
-
 lastMinimaxScore = 0
 lastSearchDurationMiliseconds = 0
-
 mctsTimeLimitMiliseconds = 0
 mctsEasyTimeLimitMiliseconds = 1000
 mctsHardTimeLimitMiliseconds = 2000
@@ -151,14 +154,9 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
          "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
          "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 
-gameMode = None
-algorithm = None
-
-run = True
-
 
 def showMenu():
-    global player1, player2, vs_computer, gameMode, menu_options, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame
+    global player1, player2, vs_computer, gameMode, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame, network_game, computerColor
 
     gameMode, isSpeedGame, useLongNotation, algorithm, difficulty = menu.show_menu(screen)
 
@@ -174,32 +172,166 @@ def showMenu():
 
     if gameMode == "quit":
         pygame.quit()
-        exit()
+        sys.exit()
     elif gameMode == "computer":
         player1 = "Gracz 1"
         player2 = "Komputer"
         vs_computer = True
     elif gameMode == "online":
-        player1 = "Gracz 1"
-        player2 = "Gracz 2"
+        player1 = "Host"
+        player2 = "Klient"
         vs_computer = False
     elif gameMode == "player":
         player1 = "Gracz 1"
         player2 = "Gracz 2"
         vs_computer = False
 
+    if gameMode == "online":
+        # Get network configuration from the host menu
+        network_config = menu.show_host_menu(screen)
 
-showMenu()
+        if isinstance(network_config, dict):
+            if network_config["mode"] == "host":
+                network_game = ChessNetworkGame(
+                    is_host=True,
+                    host=network_config["host"],
+                    port=network_config["port"]
+                )
 
-for i in range(8):
-    for j in range(8):
-        current = j+i*8
-        if board[current] == "": board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j, i), Type(None, None))
-        else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
+                network_game._establish_connection()
+                computerColor = "b"
+            else:
+                network_game = ChessNetworkGame(
+                    is_host=False,
+                    host=network_config["host"],
+                    port=network_config["port"]
+                )
 
-initBoard = copy.deepcopy(board)
+                network_game._establish_connection()
+                computerColor = "w"
+        else:
+            # User selected back or quit, return to main menu
+            gameMode = menu.show_menu(screen)
 
-initPieceDictionary(board)
+
+def show_network_dialog(screen, message, option1="Yes", option2="No"):
+    dialog_surface = pygame.Surface((400, 200), pygame.SRCALPHA)
+    util.drawRoundedRect(dialog_surface, pygame.Rect(0, 0, 400, 200), (240, 240, 240, 240), 20, 20, 20, 20)
+
+    # Message
+    util.drawText(dialog_surface, message, fnt32, (200, 50), color_gray, "center")
+
+    # Buttons
+    button_surface = pygame.Surface((400, 200), pygame.SRCALPHA)
+
+    yes_rect = pygame.Rect(50, 120, 140, 50)
+    no_rect = pygame.Rect(210, 120, 140, 50)
+
+    b1 = util.Button(button_surface, yes_rect, lambda: None)
+    b1.text, b1.font = option1, fnt32
+    b1.radius = 16
+    b1.defaultColor, b1.hoverColor, b1.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    b2 = util.Button(button_surface, no_rect, lambda: None)
+    b2.text, b2.font = option2, fnt32
+    b2.radius = 16
+    b2.defaultColor, b2.hoverColor, b2.clickColor = color_gray, (96, 94, 90), (128, 124, 118)
+
+    util.renderButtons()
+
+    # Center the dialog on screen
+    x = (screen.get_width() - 400) // 2
+    y = (screen.get_height() - 200) // 2
+
+    # Event loop for the dialog
+    dialog_running = True
+    result = False
+
+    while dialog_running:
+        mousePos = pygame.mouse.get_pos()
+        mouseDown, mouseUp, mousePressed = util.handleMouseLogic()
+
+        # Check for button clicks
+        if mouseUp:
+            if yes_rect.collidepoint((mousePos[0] - x, mousePos[1] - y)):
+                result = True
+                dialog_running = False
+            elif no_rect.collidepoint((mousePos[0] - x, mousePos[1] - y)):
+                result = False
+                dialog_running = False
+
+        # Draw dialog
+        screen.blit(dialog_surface, (x, y))
+        screen.blit(button_surface, (x, y))
+
+        # Ensure the cursor changes when hovering over buttons
+        util.useHandCursor = False
+        if yes_rect.collidepoint((mousePos[0] - x, mousePos[1] - y)) or \
+           no_rect.collidepoint((mousePos[0] - x, mousePos[1] - y)):
+            util.useHandCursor = True
+
+        util.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    dialog_running = False
+                    result = False
+
+        pygame.display.flip()
+
+    # Reset buttons
+    util.currentButtons = []
+    return result
+
+
+def draw_network_nerd_view(screen, network_game, font_small, font_medium):
+    if not network_game or not network_game.connected:
+        return
+
+    stats = network_game.get_network_stats()
+    nerd_surface = pygame.Surface((250, 220), pygame.SRCALPHA)
+
+    # Background with transparency
+    util.drawRoundedRect(nerd_surface, pygame.Rect(0, 0, 250, 220), (240, 240, 240, 220), 10, 10, 10, 10)
+
+    # Title
+    util.drawText(nerd_surface, "Network Stats", font_medium, (125, 15), color_gray, "center")
+
+    # Status indicators
+    status_color = (50, 200, 50) if stats['connected'] else (200, 50, 50)
+    pygame.draw.circle(nerd_surface, status_color, (20, 50), 8)
+    util.drawText(nerd_surface, "Connected" if stats['connected'] else "Disconnected", font_small, (35, 43), color_gray, "left")
+
+    # Connection type
+    role = "Host" if stats['is_host'] else "Client"
+    util.drawText(nerd_surface, f"Role: {role}", font_small, (20, 75), color_gray)
+
+    # IP Address
+    if stats['opponent_address']:
+        ip_text = f"Peer: {stats['opponent_address'][0]}:{stats['opponent_address'][1]}"
+        util.drawText(nerd_surface, ip_text, font_small, (20, 95), color_gray)
+
+    # Ping
+    util.drawText(nerd_surface, f"Ping: {stats['ping']}", font_small, (20, 115), color_gray)
+
+    # Response time
+    util.drawText(nerd_surface, f"Response: {stats['response_time']}", font_small, (20, 135), color_gray)
+
+    # Connection duration
+    minutes, seconds = divmod(int(stats['connection_time']), 60)
+    hours, minutes = divmod(minutes, 60)
+    time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    util.drawText(nerd_surface, f"Connected for: {time_str}", font_small, (20, 155), color_gray)
+
+    # Packet count
+    util.drawText(nerd_surface, f"Packets: {stats['packet_count']}", font_small, (20, 175), color_gray)
+
+    # Draw the surface
+    screen.blit(nerd_surface, (605, 300))
 
 
 def handleComputerMove(board, color, depth):
@@ -207,8 +339,7 @@ def handleComputerMove(board, color, depth):
 
     startTime = pygame.time.get_ticks()
 
-
-    if (algorithm == "minimax"):
+    if algorithm == "minimax":
         result = minimax(board, color, kingWhiteCoord, kingBlackCoord, depth)
         lastMinimaxScore = result[0]
     else:
@@ -247,7 +378,7 @@ def renderBoard():
     if blackInCheck: drawColorSquare(boardSurface, kingBlackCoord, (255, 90, 84, 64))
 
     if (whiteInCheck or blackInCheck) and not isGameOver:
-        util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 360), color_gray,"center")
+        util.drawText(gameResultSurface, "Szach!", fnt56, (screen.get_width() - 173, screen.get_height() - 350), color_gray,"center")
 
     # Render pieces
     for sq in board:
@@ -292,7 +423,7 @@ def hoverSquare():
             thisMove = None
             for m in possibleMoves:
                 if m.coord == sq.coord: thisMove = m
-            if sq.type.color == currentPlayer or thisMove != None:
+            if (sq.type.color == currentPlayer and not sq.type.color == computerColor) or thisMove != None:
                 drawColorSquare(screen, sq.coord, (250, 247, 240, 60))
                 hover = sq
     if hover:
@@ -307,6 +438,10 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         if currentPlayer == computerColor:
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
+    if gameMode == "online":
+        # Only send move if it's our turn
+        if (network_game.is_host and currentPlayer == "w") or (not network_game.is_host and currentPlayer == "b"):
+            network_game.send_move(startSquare, endSquare)
 
     timePassedThisMove = 0
     allMoves.append((copy.deepcopy(startSquare), copy.deepcopy(endSquare), timePassedThisMove, False))
@@ -321,7 +456,13 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
 
     currentPlayer = "w" if currentPlayer == "b" else "b"
     dir = 1 if currentPlayer == "w" else -1
+
+    drawTimers()
+    drawNotes()
+
+
     scroll = 0
+
 
     # check
     whiteInCheck = check(board, "w", kingWhiteCoord)
@@ -334,10 +475,13 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         allMoves[len(allMoves)-1] = (lastMove[0], lastMove[1], lastMove[2], True)
 
     #checkmate
-    #print(getAllMoves(board, currentPlayer, dir, True))
     if not getAllMoves(board, currentPlayer, dir, kingCoord, True):
-        checkMate = currentPlayer
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+        if currentPlayer == "b" and not blackInCheck or currentPlayer == "w" and not whiteInCheck:
+            # Stalemate
+            checkMate = "s"
+        else:
+            checkMate = currentPlayer
 
     # Play sound
     if checkMate:
@@ -361,6 +505,13 @@ def clickSquare():
     global awaitingMove, board, selected, possibleMoves, currentPlayer, whiteInCheck, blackInCheck, checkMate, isGameOver, minimaxThread, timePassedThisMove
     for sq in board:
         # Draw a select marker
+        if gameMode == "online" and network_game:
+        # Host może ruszać się tylko białymi figurami
+            if network_game.is_host and currentPlayer != "w":
+                return
+            # Klient może ruszać się tylko czarnymi figurami
+            if not network_game.is_host and currentPlayer != "b":
+                return
         if sq == selected:
             screen.blit(selectMarker, sq.rect)
         if mouseDown and not awaitingMove:
@@ -377,6 +528,7 @@ def clickSquare():
                         kingCoord = kingWhiteCoord if currentPlayer == "w" else kingBlackCoord
                         possibleMoves = calculateMoves(board, sq.coord, sq.type.name, sq.type.color, dir, kingCoord, True)
                     renderBoard()
+
                 # Move a piece
                 else:
                     if possibleMoves.__contains__(hover) and selected is not None:
@@ -458,33 +610,7 @@ def restartGame():
     drawInit()
 
 
-def drawInit():
-    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn, timer1, timer2
-
-    initSurface.fill((0,0,0,0))
-    # Border
-    util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
-
-    if isSpeedGame:
-        timer1 = 5 * 60 + 0.95
-        timer2 = 5 * 60 + 0.95
-    else:
-        timer1 = 10 * 60 + 0.95
-        timer2 = 10 * 60 + 0.95
-
-    # Draw the timers on start
-    drawTimers()
-    drawNotes()
-
-    # Player names
-    util.drawText(initSurface, player1, fnt56, (60, 615), color_gray)
-    util.drawText(initSurface, player2, fnt56, (60, 20), color_gray)
-
-    # Algebraic notes
-    util.drawRoundedRect(initSurface, (605, 100, 250, 125), color_checkerwhite, 16, 16, 16, 16)
-
-    # Buttons
-    def undo(final = False):
+def undo(final = False):
         global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1,\
             timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord, scroll
 
@@ -545,6 +671,36 @@ def drawInit():
             # Undo computer's and own move
             if gameMode == "computer" and not final:
                 undo(True)
+            if gameMode=="online":
+                undo(True)
+
+
+def drawInit():
+    global initSurface, kingWhiteCoord, kingBlackCoord, scrollUpBtn, scrollDownBtn, timer1, timer2
+
+    initSurface.fill((0,0,0,0))
+    # Border
+    util.drawRoundedRect(initSurface, (boardCoords[0] - 4, boardCoords[1] - 4, squareSize * 8 + 8, squareSize * 8 + 8), color_gray, 20, 20, 20, 20)
+
+    if isSpeedGame:
+        timer1 = 5 * 60 + 0.95
+        timer2 = 5 * 60 + 0.95
+    else:
+        timer1 = 10 * 60 + 0.95
+        timer2 = 10 * 60 + 0.95
+
+    # Draw the timers on start
+    drawTimers()
+    drawNotes()
+
+    # Player names
+    util.drawText(initSurface, player1, fnt56, (60, 615), color_gray)
+    util.drawText(initSurface, player2, fnt56, (60, 20), color_gray)
+
+    # Algebraic notes
+    util.drawRoundedRect(initSurface, (605, 100, 250, 125), color_checkerwhite, 16, 16, 16, 16)
+
+    # Buttons
 
     def toggleNerdView():
         global nerdViewVisible
@@ -730,6 +886,12 @@ def drawNotes():
             util.drawText(notesSurface, f"{strg}", fnt26,(pos, 15 + (count - absolute + scroll) * 25, 20, 20), color_gray, "center", (2,2))
         last = count
 
+
+
+
+
+
+
         if scroll+1 > absolute: scrollUpBtn.disabled = True
         else: scrollUpBtn.disabled = False
 
@@ -739,8 +901,31 @@ def drawNotes():
     util.renderButtons()
 
 
-drawInit()
+# Pre-game initialization
+showMenu()
 
+# change the board from a list of strings to a list of Squares
+for i in range(8):
+    for j in range(8):
+        current = j+i*8
+        if board[current] == "": board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j, i), Type(None, None))
+        else: board[current] = Square(Rect(boardCoords[0] + j * squareSize, boardCoords[1] + i * squareSize, squareSize, squareSize), (j,i), Type(board[current][1].lower(), board[current][0]))
+
+initBoard = copy.deepcopy(board)
+
+initPieceDictionary(board)
+
+run = True
+
+#print("Inicjalizacja szachownicy")
+drawInit()
+#print("Szachownica zainicjalizowana")
+
+#print("Renderowanie szachownicy")
+renderBoard()
+#print("Szachownica wyrenderowana")
+
+# Game loop
 while run:
     if not gameMode: continue
     deltaTime = timer.tick(fps) / 1000
@@ -757,7 +942,6 @@ while run:
 
     util.useHandCursor = False
     secondsPassed += deltaTime
-
 
     if not isGameOver:
         if currentPlayer == "w": timer2 -= deltaTime
@@ -786,12 +970,16 @@ while run:
         possibleMoves = []
         renderBoard()
         if checkMate == "w":
-            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
-            util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
 
         if checkMate == "b":
-            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 355), color_gray, "center")
-            util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 315), color_gray, "center")
+            util.drawText(gameResultSurface, "Szach mat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
+
+        if checkMate == "s":
+            util.drawText(gameResultSurface, "Pat!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray, "center")
+            util.drawText(gameResultSurface, f"Remis!", fnt26, (screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
 
     # End game by time over
     if timer1 <= 0 and not isGameOver:
@@ -799,10 +987,10 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 345),
                       color_gray,"center")
         util.drawText(gameResultSurface, f"Wygrywa {player1}!", fnt26,
-                      (screen.get_width() - 173, screen.get_height() - 315),
+                      (screen.get_width() - 173, screen.get_height() - 305),
                       color_gray, "center")
 
     if timer2 <= 0 and not isGameOver:
@@ -810,12 +998,49 @@ while run:
         selected = None
         possibleMoves = []
         renderBoard()
-        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 355),
-                      color_gray,
-                      "center")
-        util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26,
-                      (screen.get_width() - 173, screen.get_height() - 315),
-                      color_gray, "center")
+        util.drawText(gameResultSurface, "Koniec czasu!", fnt56, (screen.get_width() - 173, screen.get_height() - 345), color_gray,"center")
+        util.drawText(gameResultSurface, f"Wygrywa {player2}!", fnt26,(screen.get_width() - 173, screen.get_height() - 305), color_gray, "center")
+
+    # Handle network events
+    if gameMode == "online" and network_game:
+        network_event = network_game.handle_network_events(board)
+
+        if network_event == "UNDO_REQUEST":
+            # Show dialog asking player for permission
+            undo_accepted = show_network_dialog(
+                screen,
+                "Opponent requests to undo last move",
+                "Accept",
+                "Decline"
+            )
+            network_game.send_undo_response(undo_accepted)
+            if undo_accepted:
+                undo(final=True)  # Undo the last move
+
+        elif network_event == "UNDO_ACCEPTED":
+            # Opponent accepted our undo request
+            undo(final=True)
+
+        elif network_event == "UNDO_REJECTED":
+            # Opponent rejected our undo request
+            show_network_dialog(screen, "Undo request declined", "OK", "")
+
+        elif network_event == "CONNECTION_LOST":
+            # Connection lost - show message
+            show_network_dialog(screen, "Connection lost", "OK", "")
+
+        elif isinstance(network_event, tuple):
+            # Received a move from opponent
+            start_square, end_square = network_event
+            handlePieceMove(start_square, end_square)
+
+    # Draw network nerd view if enabled
+    if gameMode == "online" and network_game and network_nerd_view_visible:
+        draw_network_nerd_view(screen, network_game, fnt16, fnt26, color_gray)
+
+    # Clean up network connection on exit
+    # if gameMode == "online" and network_game:
+    #     network_game.close_connection()
 
     # Nerd View
     if nerdViewVisible:
@@ -832,6 +1057,7 @@ while run:
         util.drawText(screen, "Kursor: " + str(mousePos), fnt16, (screen.get_width() - 4, screen.get_height() - 42), color_gray, "topright", (0,0))
         util.drawText(screen, "Fps: " + str(round(timer.get_fps())), fnt16, (screen.get_width() - 4, screen.get_height() - 22), color_gray, "topright", (0,0))
 
+    # Handle events
     events = pygame.event.get()
 
     for event in events:
@@ -849,7 +1075,6 @@ while run:
 
             drawNotes()
 
-    # Board
     screen.blit(initSurface, (0,0))
     screen.blit(boardSurface, (0,0))
     screen.blit(buttonSurface, (0,0))
@@ -859,8 +1084,8 @@ while run:
     screen.blit(notesSurface, (615, 110))
 
     if not isGameOver:
-        hoverSquare()
-        clickSquare()
+            hoverSquare()
+            clickSquare()
 
     util.update()
 
