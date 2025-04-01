@@ -148,7 +148,7 @@ class Menu:
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
-        b = util.Button(self.buttonSurface, Rect(300, 410, 300, 55), lambda: initOnlineMenu())
+        b = util.Button(self.buttonSurface, Rect(300, 410, 300, 55), lambda: pressButton("online"))
         b.text, b.font = "Przez siec", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
@@ -197,6 +197,7 @@ class HostMenu:
         self.screen = screen
         self.fnt56 = pygame.font.Font("font.otf", 56)
         self.fnt48 = pygame.font.Font("font.otf", 48)
+        self.fnt36 = pygame.font.Font("font.otf", 36)
         self.fnt32 = pygame.font.Font("font.otf", 32)
         self.fnt24 = pygame.font.Font("font.otf", 24)
         self.color_gray = (74, 73, 71)
@@ -234,7 +235,7 @@ class HostMenu:
             self.ip_input_active = False
 
         # Menu title
-        util.drawText(self.textSurface, "Tryb sieciowy", self.fnt56, (450, 150), self.color_gray, "center")
+        util.drawText(self.textSurface, "Tryb sieciowy", self.fnt56, (450, 140), self.color_gray, "center")
         
         # IP Address input
         util.drawText(self.textSurface, "Adres IP:", self.fnt32, (300, 230), self.color_gray)
@@ -253,17 +254,17 @@ class HostMenu:
         b.radius = 10
 
         # Start game/return buttons
-        b = util.Button(self.buttonSurface, Rect(300, 350, 300, 55), lambda: pressButton("host"))
-        b.text, b.font = "Hostuj gre", self.fnt48
+        b = util.Button(self.buttonSurface, Rect(300, 390, 300, 55), lambda: pressButton("host"))
+        b.text, b.font = "Hostuj gre", self.fnt36
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
-        b = util.Button(self.buttonSurface, Rect(280, 430, 340, 55), lambda: pressButton("client"))
-        b.text, b.font = "Dolacz do gry", self.fnt48
+        b = util.Button(self.buttonSurface, Rect(280, 440, 340, 55), lambda: pressButton("client"))
+        b.text, b.font = "Dolacz do gry", self.fnt36
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66
 
-        b = util.Button(self.buttonSurface, Rect(300, 520, 300, 55), lambda: pressButton("back"))
+        b = util.Button(self.buttonSurface, Rect(300, 600, 300, 55), lambda: pressButton("back"))
         b.text, b.font = "Powrot", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
         b.shadowAlpha = 66

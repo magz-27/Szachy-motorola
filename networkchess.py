@@ -5,6 +5,13 @@ import json
 import select
 
 
+def getBoardFromCoord(board, coord):
+    if coord[0] > 7 or coord[0] < 0 or coord[1] > 7 or coord[1] < 0:
+        return None
+    index = coord[0] + coord[1] * 8
+    return board[index]
+
+
 class ChessNetworkGame:
     
     def __init__(self, is_host=False, host='localhost', port=5000):
@@ -111,7 +118,7 @@ class ChessNetworkGame:
                 
             # Nasłuchiwanie połączeń
             self.socket.listen(1)
-            print("Waiting for connection...")
+            print("### WAITING FOR CONNECTION... ###")
             
             # Akceptowanie połączenia
             try:
@@ -318,7 +325,7 @@ class ChessNetworkGame:
             'enabled': enabled
         })
         return self.send_message(message)
-    
+
     def handle_network_events(self, board):
         """Handle incoming network events"""
         try:
@@ -388,29 +395,8 @@ class ChessNetworkGame:
                     # Użyj metod z board do znalezienia pól
                     # Zakładam, że board ma metodę get_square_by_coord lub podobną
                     # Jeśli nie, dostosuj to do faktycznego API twojej klasy board
-                    if hasattr(board, 'get_square_from_coord'):
-                        start_square = board.get_square_from_coord(start_coord)
-                        end_square = board.get_square_from_coord(end_coord)
-                    elif hasattr(board, 'get_square_by_coord'):
-                        start_square = board.get_square_by_coord(start_coord)
-                        end_square = board.get_square_by_coord(end_coord)
-                    else:
-                        # Fallback - spróbuj użyć atrybut z obiektu board jeśli to możliwe
-                        import inspect
-                        module_functions = inspect.getmembers(board, inspect.isfunction)
-                        # Szukaj funkcji która wygląda na getter dla pól
-                        get_square_func = None
-                        for name, func in module_functions:
-                            if 'get' in name.lower() and 'square' in name.lower():
-                                get_square_func = func
-                                break
-                        
-                        if get_square_func:
-                            start_square = get_square_func(board, start_coord)
-                            end_square = get_square_func(board, end_coord)
-                        else:
-                            print("Cannot find a method to get squares from board")
-                            return None
+                    start_square = getBoardFromCoord(board, start_coord)
+                    end_square = getBoardFromCoord(board, end_coord)
                     
                     if start_square is None or end_square is None:
                         print(f"Error: Could not find squares {start_coord} or {end_coord}")
@@ -419,7 +405,7 @@ class ChessNetworkGame:
                     with self.lock:
                         self.last_response_time = time.time() - parsed.get('timestamp', time.time())
                         self.packet_count += 1
-                    return (start_square, end_square)
+                    return start_square, end_square
                     
                 elif message_type == 'UNDO_REQUEST':
                     return 'UNDO_REQUEST'

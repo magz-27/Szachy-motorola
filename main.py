@@ -178,8 +178,8 @@ def showMenu():
         player2 = "Komputer"
         vs_computer = True
     elif gameMode == "online":
-        player1 = "Gracz 1"
-        player2 = "Gracz 2"
+        player1 = "Host"
+        player2 = "Klient"
         vs_computer = False
     elif gameMode == "player":
         player1 = "Gracz 1"
@@ -197,18 +197,18 @@ def showMenu():
                     host=network_config["host"],
                     port=network_config["port"]
                 )
-                player1 = "Host"
-                player2 = "Client"
-                computerColor = None  # No computer player in network mode
+
+                network_game._establish_connection()
+                computerColor = "b"
             else:
                 network_game = ChessNetworkGame(
                     is_host=False,
                     host=network_config["host"],
                     port=network_config["port"]
                 )
-                player1 = "Client"
-                player2 = "Host"
-                computerColor = None  # No computer player in network mode
+
+                network_game._establish_connection()
+                computerColor = "w"
         else:
             # User selected back or quit, return to main menu
             gameMode = menu.show_menu(screen)
@@ -423,7 +423,7 @@ def hoverSquare():
             thisMove = None
             for m in possibleMoves:
                 if m.coord == sq.coord: thisMove = m
-            if sq.type.color == currentPlayer or thisMove != None:
+            if (sq.type.color == currentPlayer and not sq.type.color == computerColor) or thisMove != None:
                 drawColorSquare(screen, sq.coord, (250, 247, 240, 60))
                 hover = sq
     if hover:
@@ -438,7 +438,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
         if currentPlayer == computerColor:
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
-    if gameMode == "online" and network_game and network_game.connected:
+    if gameMode == "online":
         # Only send move if it's our turn
         if (network_game.is_host and currentPlayer == "w") or (not network_game.is_host and currentPlayer == "b"):
             network_game.send_move(startSquare, endSquare)
@@ -917,13 +917,13 @@ initPieceDictionary(board)
 
 run = True
 
-print("Inicjalizacja szachownicy")
+#print("Inicjalizacja szachownicy")
 drawInit()
-print("Szachownica zainicjalizowana")
+#print("Szachownica zainicjalizowana")
 
-print("Renderowanie szachownicy")
+#print("Renderowanie szachownicy")
 renderBoard()
-print("Szachownica wyrenderowana")
+#print("Szachownica wyrenderowana")
 
 # Game loop
 while run:
@@ -1039,8 +1039,8 @@ while run:
         draw_network_nerd_view(screen, network_game, fnt16, fnt26, color_gray)
 
     # Clean up network connection on exit
-    if gameMode == "online" and network_game:
-        network_game.close_connection()
+    # if gameMode == "online" and network_game:
+    #     network_game.close_connection()
 
     # Nerd View
     if nerdViewVisible:
