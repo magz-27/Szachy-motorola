@@ -542,33 +542,37 @@ def undoLastOverride():
         undoLastOverride()
 
 
-def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, whiteMoveCount = None, blackMoveCount = None, reverseDirection = False, ):
+def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, whiteMoveCount = None, blackMoveCount = None, reverseDirection = False):
     isWhiteInCheck = check(board, "w", kingWhiteCoord)
     isBlackInCheck = check(board, "b", kingBlackCoord)
+
+    oppositeMoves = []
     if whiteMoveCount == None:
-        whiteMoveCount = len(mctsGetAllMoves(board, "w", kingBlackCoord))
+        oppositeMoves = mctsGetAllMoves(board, "w", kingWhiteCoord)
+        whiteMoveCount = len(oppositeMoves)
     if blackMoveCount == None:
-        blackMoveCount = len(mctsGetAllMoves(board, "b", kingBlackCoord))
+        oppositeMoves = mctsGetAllMoves(board, "b", kingBlackCoord)
+        blackMoveCount = len(oppositeMoves)
 
     if blacksTurn:
         if blackMoveCount == 0:
             if isBlackInCheck:
                 # white won
-                return "w"
+                return "w", oppositeMoves
             
             # draw by stalemate
-            return "d"
+            return "d", oppositeMoves
     else:
         if whiteMoveCount == 0:
             if isWhiteInCheck:
                 # black won
-                return "b"
+                return "b", oppositeMoves
             
             # draw by stalemate
-            return "d"
+            return "d", oppositeMoves
     
     # game has not ended yet
-    return "0"
+    return "0", oppositeMoves
 
 def debugPreviewBoard(board):
     for i in range(8):

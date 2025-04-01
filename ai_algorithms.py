@@ -181,8 +181,9 @@ class mctsNode:
         self.wins = 0
         self.simulations = 0
 
-
+COPY = 0
 def monteCarloTS(board, color, timeLimitMiliseconds):
+    global COPY
     startTime = pygame.time.get_ticks()
 
     root = mctsNode(None)
@@ -198,6 +199,8 @@ def monteCarloTS(board, color, timeLimitMiliseconds):
 
     bestFoundMove = None
     mostSimulations = 0
+
+    print(COPY)
 
     for child in root.children:
         if (child.simulations > mostSimulations):
@@ -280,9 +283,9 @@ def mctsRandomPieceMoves(board, color):
             return [piece, moves]
 
 def mctsSimulate(board,node):
-    global changesStack
-    global pieceDictionary
-    
+    global changesStack, pieceDictionary
+    global COPY
+
     dictSave = copy.deepcopy(pieceDictionary)
     stackSave = copy.deepcopy(changesStack)
 
@@ -308,21 +311,24 @@ def mctsSimulate(board,node):
 
         # simulation
         blacksTurn = childNode.blacksTurn
-        state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn)
+        state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn)[0]
 
+        availableMoves = None
         while (state == "0"):
             color = "b" if blacksTurn else "w"
-
-            randomPieceMoves = mctsRandomPieceMoves(board, color)
-
-            if randomPieceMoves == None:
-                state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))
+            if availableMoves == None:
+                availableMoves = mctsGetAllMoves(board, color, findKingPosition(color))
+            
+            if len(availableMoves) == 0:
+                if color == "b":
+                    state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))[0]
+                else:
+                    state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, whiteMoveCount=len(availableMoves))[0]
                 break
-
-            randomEndSquare = random.choice(randomPieceMoves[1])
-
-            move = [randomPieceMoves[0].coord, randomEndSquare.coord]
-
+            
+            # perform random moves
+            moveSquare = random.choice(availableMoves)
+            move = [moveSquare[0].coord, moveSquare[1].coord]
 
 
             movesSinceLastCapture += 1
@@ -336,11 +342,13 @@ def mctsSimulate(board,node):
             board = overridingMovePiece(board, move[0], move[1])
             blacksTurn = not blacksTurn
             if color == "b":
-                state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))
+                state, availableMoves = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))
             else:
-                state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, whiteMoveCount=len(availableMoves))
+                state, availableMoves = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, whiteMoveCount=len(availableMoves))
+
+
     else:
-        state = gameState(board, findKingPosition("w"), findKingPosition("b"), node.blacksTurn)
+        state = gameState(board, findKingPosition("w"), findKingPosition("b"), node.blacksTurn)[0]
 
 
     # reverse made changes:
