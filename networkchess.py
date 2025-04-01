@@ -80,6 +80,7 @@ class ChessNetworkGame:
                     self.ping_thread = threading.Thread(target=self._monitor_ping)
                     self.ping_thread.daemon = True
                     self.ping_thread.start()
+                    print("### CONNECTION SUCCESSFUL ###")
                 else:
                     print("Not connected, not starting ping thread")
             
@@ -118,7 +119,7 @@ class ChessNetworkGame:
                 
             # Nasłuchiwanie połączeń
             self.socket.listen(1)
-            print("### WAITING FOR CONNECTION... ###")
+            print("### WAITING FOR CONNECTION... DO NOT PANIC IF IT LOOKS STUCK ###")
             
             # Akceptowanie połączenia
             try:
