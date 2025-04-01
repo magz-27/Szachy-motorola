@@ -283,17 +283,16 @@ def mctsSimulate(board,node):
 
             # perform random moves
             moveSquare = random.choice(availableMoves)
-            move = [moveSquare[0].coord, moveSquare[1].coord]
 
             movesSinceLastCapture += 1
-            if (getBoardFromCoord(board, move[1]).type.color != None):
+            if (getBoardFromCoord(board, moveSquare[1].coord).type.color != None):
                 movesSinceLastCapture = 0
             if movesSinceLastCapture == MCTS_PEACEFUL_MOVE_LIMIT:
                 # declare a draw after a given amount of moves without piece captures
                 state = "d"
                 break
 
-            board = overridingMovePiece(board, move[0], move[1])
+            board = overridingMovePiece(board, moveSquare[0].coord, moveSquare[1].coord)
             blacksTurn = not blacksTurn
             state = gameState(board, findKingPosition(board, "w"), findKingPosition(board, "b"), blacksTurn)
     else:
@@ -304,7 +303,6 @@ def mctsSimulate(board,node):
         pieceDictionary[key] = value
     changesStack.clear()
     changesStack.extend(stackSave)
-
 
     if state == "d":
         return 0

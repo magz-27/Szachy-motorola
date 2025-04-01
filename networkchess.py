@@ -4,6 +4,7 @@ import socket
 import json
 import select
 
+
 class ChessNetworkGame:
     
     def __init__(self, is_host=False, host='localhost', port=5000):

@@ -1,5 +1,4 @@
 import sys
-
 import pygame
 from pygame.locals import *
 import util
@@ -192,6 +191,7 @@ class Menu:
         util.clearButtons()
         return self.gameMode, self.gameLength, self.notationType, self.algorithm, self.difficulty
 
+
 class HostMenu:
     def __init__(self, screen):
         self.screen = screen
@@ -233,7 +233,7 @@ class HostMenu:
             self.port_input_active = True
             self.ip_input_active = False
 
-        # Tytuł menu
+        # Menu title
         util.drawText(self.textSurface, "Tryb sieciowy", self.fnt56, (450, 150), self.color_gray, "center")
         
         # IP Address input
@@ -251,8 +251,8 @@ class HostMenu:
         b = util.Button(self.buttonSurface, self.port_input_rect, lambda: activate_port_input())
         b.defaultColor, b.hoverColor, b.clickColor = (240, 240, 240), (230, 230, 230), (220, 220, 220)
         b.radius = 10
-        
-        # Przyciski wyboru
+
+        # Start game/return buttons
         b = util.Button(self.buttonSurface, Rect(300, 350, 300, 55), lambda: pressButton("host"))
         b.text, b.font = "Hostuj gre", self.fnt48
         b.textColor, b.textHoverColor, b.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
@@ -334,19 +334,17 @@ class HostMenu:
 
         util.currentButtons = []
         
-        # Jeśli użytkownik kliknął "Powrót", wróć do głównego menu
+        # Go back to main menu if clicked "back"
         if self.selected_option is None:
             return show_menu(self.screen)
             
         return self.selected_option
 
 
-
-
-
 def show_host_menu(screen):
     host_menu = HostMenu(screen)
     return host_menu.run()
+
 
 def show_menu(screen):
     menu = Menu(screen)
