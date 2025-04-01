@@ -16,11 +16,7 @@ Projekt gry w szachy, stworzony w ramach konkursu Motorola Science Cup. Napisany
 • Możliwość dostosowania gry (gra błyskawiczna, poziom trudności komputera) <br />
 <br />
 📦 Instalacja i uruchomienie <br />
-Wymagania systemowe: <br />
-Zainstalowana biblioteka pygame (pip install pygame). <br />
-<br />
-Uruchomienie gry: <br />
-Rozpakuj plik .zip, a potem uruchom plik main.py. <br />
+Rozpakuj plik .zip, a potem uruchom plik main.exe <br />
 <br />
 👥 Autorzy <br />
 Projekt został stworzony przez zespół uczniów: <br />
