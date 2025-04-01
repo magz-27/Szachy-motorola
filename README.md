@@ -3,7 +3,7 @@
 <br />
 <br />
 ## 📖 Wprowadzenie <br />
-Projekt gry w szachy "Chess", stworzony w ramach konkursu Motorola Science Cup. <br>
+Projekt gry w szachy "Chess", stworzony w ramach konkursu **Motorola Science Cup 2025**. <br>
 Napisany w Pythonie przy użyciu biblioteki PyGame. <br />
 <br />
 ## 🚀 Funkcjonalności <br />
@@ -17,9 +17,7 @@ Napisany w Pythonie przy użyciu biblioteki PyGame. <br />
 • Możliwość dostosowania gry (gra błyskawiczna, poziom trudności komputera) <br />
 <br />
 ## 📦 Instalacja i uruchomienie <br />
-Rozpakuj plik .zip, a potem uruchom plik **main.exe**. <br /> <br>
-Wymagane biblioteki: <br>
-  •  **pygame**
+Rozpakuj plik .zip, a potem uruchom plik **main.exe**. <br />
 <br />
 ## 👥 Autorzy <br />
 Projekt został stworzony przez zespół uczniów: <br />
