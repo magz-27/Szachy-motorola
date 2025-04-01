@@ -24,7 +24,6 @@ def scoreBlack(board, kingWhiteCoord, kingBlackCoord, currentPlayer = "b"):
     enemyPlayer = "b" if currentPlayer == "w" else "w"
     enemyKingCoord = kingWhiteCoord if currentPlayer == "b" else kingBlackCoord
 
-    # TODO: correct 
     avaibleMoves = dictGetAllMoves(board, currentPlayer, dir, kingCoord, True)
     hasMoves = len(avaibleMoves) != 0
     if (not hasMoves):
