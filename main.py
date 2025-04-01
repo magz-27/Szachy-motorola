@@ -40,13 +40,13 @@ iconScrollDown = pygame.image.load("graphics/icon_scrolldown.png")
 
 pygame.display.set_icon(icon_pygame)
 
-fnt56 = pygame.font.Font("font.otf", 56)
-fnt42 = pygame.font.Font("font.otf", 42)
-fnt32 = pygame.font.Font("font.otf", 32)
-fnt26 = pygame.font.Font("font.otf", 26)
-fnt18 = pygame.font.Font("font.otf", 18)
-fnt16 = pygame.font.Font("font.otf", 16)
-fnt12 = pygame.font.Font("font.otf", 12)
+fnt56 = pygame.font.Font("graphics/font.otf", 56)
+fnt42 = pygame.font.Font("graphics/font.otf", 42)
+fnt32 = pygame.font.Font("graphics/font.otf", 32)
+fnt26 = pygame.font.Font("graphics/font.otf", 26)
+fnt18 = pygame.font.Font("graphics/font.otf", 18)
+fnt16 = pygame.font.Font("graphics/font.otf", 16)
+fnt12 = pygame.font.Font("graphics/font.otf", 12)
 
 
 pieceImages = {"Pawn Light": pygame.image.load('chessPieces/Pawn Light.png').convert_alpha(), "Rook Light": pygame.image.load(
@@ -100,7 +100,7 @@ algorithm = None
 
 # engine variables
 currentPlayer = 'w'
-computerColor = "b"
+enemyColor = "b"
 kingWhiteCoord = None
 kingBlackCoord = None
 allMoves = []
@@ -156,7 +156,7 @@ board = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
 
 
 def showMenu():
-    global player1, player2, vs_computer, gameMode, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame, network_game, computerColor
+    global player1, player2, vs_computer, gameMode, minimaxSearchDepth, mctsTimeLimitMiliseconds, useLongNotation, algorithm, isSpeedGame, network_game, enemyColor
 
     gameMode, isSpeedGame, useLongNotation, algorithm, difficulty = menu.show_menu(screen)
 
@@ -199,7 +199,7 @@ def showMenu():
                 )
 
                 network_game._establish_connection()
-                computerColor = "b"
+                enemyColor = "b"
             else:
                 network_game = ChessNetworkGame(
                     is_host=False,
@@ -208,7 +208,7 @@ def showMenu():
                 )
 
                 network_game._establish_connection()
-                computerColor = "w"
+                enemyColor = "w"
         else:
             # User selected back or quit, return to main menu
             gameMode = menu.show_menu(screen)
@@ -423,7 +423,7 @@ def hoverSquare():
             thisMove = None
             for m in possibleMoves:
                 if m.coord == sq.coord: thisMove = m
-            if (sq.type.color == currentPlayer and not sq.type.color == computerColor) or thisMove != None:
+            if (sq.type.color == currentPlayer and (not sq.type.color == enemyColor or gameMode == "player")) or thisMove != None:
                 drawColorSquare(screen, sq.coord, (250, 247, 240, 60))
                 hover = sq
     if hover:
@@ -435,7 +435,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
 
     if not startTime == None:
         timeElapsed = pygame.time.get_ticks() - startTime
-        if currentPlayer == computerColor:
+        if currentPlayer == enemyColor:
             lastSearchDurationMiliseconds = timeElapsed
         timePassedThisMove = timeElapsed / 1000
     if gameMode == "online":
@@ -460,9 +460,7 @@ def handlePieceMove(startSquare, endSquare, startTime = None):
     drawTimers()
     drawNotes()
 
-
     scroll = 0
-
 
     # check
     whiteInCheck = check(board, "w", kingWhiteCoord)
@@ -506,10 +504,10 @@ def clickSquare():
     for sq in board:
         # Draw a select marker
         if gameMode == "online" and network_game:
-        # Host może ruszać się tylko białymi figurami
+            # Host can only move white pieces
             if network_game.is_host and currentPlayer != "w":
                 return
-            # Klient może ruszać się tylko czarnymi figurami
+            # Client can only move black piecees
             if not network_game.is_host and currentPlayer != "b":
                 return
         if sq == selected:
@@ -544,7 +542,6 @@ def clickSquare():
                             )
                             minimaxThread.daemon = True
                             minimaxThread.start()
-                            #cProfile.run("handleMinimax(board,currentPlayer, minimaxSearchDepth)")
 
 
 def drawColorSquare(surface, coord, color):
@@ -561,7 +558,7 @@ def drawColorSquare(surface, coord, color):
     util.drawRoundedRect(surface, Rect(boardCoords[0] + coord[0] * squareSize, boardCoords[1] + coord[1] * squareSize, squareSize, squareSize), color, rds[0], rds[1], rds[2], rds[3])
 
 
-def resetBoard():
+def resetBoard(final=False):
     global awaitingMove, board, initBoard, allMoves, timer1, timer2, currentPlayer, whiteInCheck, blackInCheck, \
         checkMate, isGameOver, selected, possibleMoves, timePassedThisMove, scroll, isSpeedGame
 
@@ -591,6 +588,8 @@ def resetBoard():
     selected = None
     possibleMoves = []
 
+    if gameMode == "online" and not final:
+        network_game.send_message("RESET")
     scroll = 0
 
     drawTimers()
@@ -611,68 +610,69 @@ def restartGame():
 
 
 def undo(final = False):
-        global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1,\
-            timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord, scroll
+    global allMoves, awaitingMove, board, whiteInCheck, blackInCheck, currentPlayer, checkMate, isGameOver, timer1,\
+        timer2, timePassedThisMove, selected, possibleMoves, kingWhiteCoord, kingBlackCoord, scroll
 
-        if awaitingMove:
-            return
+    if awaitingMove:
+        return
+    if len(allMoves) != 0:
+        m = allMoves[len(allMoves)-1]
 
-        if len(allMoves) != 0:
-            m = allMoves[len(allMoves)-1]
+        # Pawn promotion
+        pieceName = m[0].type.name
+        if m[0].type.name == "p":
+            if (m[1].coord[1] == 0 and m[0].type.color == "w") or (m[1].coord[1] == 7 and m[0].type.color == "b"):
+                pieceName = "q"
 
-            # Pawn promotion
-            pieceName = m[0].type.name
-            if m[0].type.name == "p":
-                if (m[1].coord[1] == 0 and m[0].type.color == "w") or (m[1].coord[1] == 7 and m[0].type.color == "b"):
-                    pieceName = "q"
+        # Undo the move in the dictionary
+        pieceDictionary[m[0].type.color + m[0].type.name][m[0].coord] = m[0]
+        del pieceDictionary[m[0].type.color + pieceName][m[1].coord]
+        if m[1].type.name != None: pieceDictionary[m[1].type.color + m[1].type.name][m[1].coord] = m[1]
 
-            # Undo the move in the dictionary
-            pieceDictionary[m[0].type.color + m[0].type.name][m[0].coord] = m[0]
-            del pieceDictionary[m[0].type.color + pieceName][m[1].coord]
-            if m[1].type.name != None: pieceDictionary[m[1].type.color + m[1].type.name][m[1].coord] = m[1]
+        for i, sq in enumerate(board):
+            if sq.coord == m[0].coord: board[i] = m[0]
+            if sq.coord == m[1].coord: board[i] = m[1]
 
-            for i, sq in enumerate(board):
-                if sq.coord == m[0].coord: board[i] = m[0]
-                if sq.coord == m[1].coord: board[i] = m[1]
+        # Undo king position
+        if m[0].type.name == "k":
+            if m[0].type.color == "w": kingWhiteCoord = m[0].coord
+            else: kingBlackCoord = m[0].coord
 
-            # Undo king position
-            if m[0].type.name == "k":
-                if m[0].type.color == "w": kingWhiteCoord = m[0].coord
-                else: kingBlackCoord = m[0].coord
+        if m[0].type.color == "w":
+            #timer2 += m[2]
+            timer1 += timePassedThisMove
+        else:
+            #timer1 += m[2]
+            timer2 += timePassedThisMove
+        timePassedThisMove = 0
 
-            if m[0].type.color == "w":
-                #timer2 += m[2]
-                timer1 += timePassedThisMove
-            else:
-                #timer1 += m[2]
-                timer2 += timePassedThisMove
-            timePassedThisMove = 0
+        allMoves.remove(m)
+        currentPlayer = "w" if currentPlayer == "b" else "b"
 
-            allMoves.remove(m)
-            currentPlayer = "w" if currentPlayer == "b" else "b"
+        # Reset game over
+        checkMate = None
+        isGameOver = False
+        whiteInCheck = check(board, "w", kingWhiteCoord)
+        blackInCheck = check(board, "b", kingBlackCoord)
 
-            # Reset game over
-            checkMate = None
-            isGameOver = False
-            whiteInCheck = check(board, "w", kingWhiteCoord)
-            blackInCheck = check(board, "b", kingBlackCoord)
+        # Reset selection
+        selected = None
+        possibleMoves = []
 
-            # Reset selection
-            selected = None
-            possibleMoves = []
+        scroll = 0
 
-            scroll = 0
+        if gameMode == "online" and not final:
+            network_game.send_message("UNDO_ACCEPTED")
 
-            drawTimers()
-            drawNotes()
-            renderBoard()
+        drawTimers()
+        drawNotes()
+        renderBoard()
 
-
-            # Undo computer's and own move
-            if gameMode == "computer" and not final:
-                undo(True)
-            if gameMode=="online":
-                undo(True)
+        # Undo computer's and own move
+        if gameMode == "computer" and not final:
+            undo(True)
+        if gameMode=="online" and not final:
+            undo(True)
 
 
 def drawInit():
@@ -886,12 +886,6 @@ def drawNotes():
             util.drawText(notesSurface, f"{strg}", fnt26,(pos, 15 + (count - absolute + scroll) * 25, 20, 20), color_gray, "center", (2,2))
         last = count
 
-
-
-
-
-
-
         if scroll+1 > absolute: scrollUpBtn.disabled = True
         else: scrollUpBtn.disabled = False
 
@@ -917,13 +911,8 @@ initPieceDictionary(board)
 
 run = True
 
-#print("Inicjalizacja szachownicy")
 drawInit()
-#print("Szachownica zainicjalizowana")
-
-#print("Renderowanie szachownicy")
 renderBoard()
-#print("Szachownica wyrenderowana")
 
 # Game loop
 while run:
@@ -1020,6 +1009,7 @@ while run:
         elif network_event == "UNDO_ACCEPTED":
             # Opponent accepted our undo request
             undo(final=True)
+            undo(final=True)
 
         elif network_event == "UNDO_REJECTED":
             # Opponent rejected our undo request
@@ -1028,6 +1018,9 @@ while run:
         elif network_event == "CONNECTION_LOST":
             # Connection lost - show message
             show_network_dialog(screen, "Connection lost", "OK", "")
+
+        elif network_event == "RESET":
+            resetBoard(True)
 
         elif isinstance(network_event, tuple):
             # Received a move from opponent

@@ -210,7 +210,9 @@ def calculateMoves(board, coord, name, color, direction, kingCoord, onlyLegal=Fa
         # Double
         sq = getBoardFromCoord(board, (coord[0], coord[1] - 2 * direction))
         if sq != None:
-            if sq.type.name is None and ((coord[1] == 6 and direction == 1) or (coord[1] == 1 and direction == -1)): moves.append(sq)
+            if sq.type.name is None and ((coord[1] == 6 and direction == 1) or (coord[1] == 1 and direction == -1)):
+                if getBoardFromCoord(board, (coord[0], coord[1] - 1 * direction)).type.name is None:
+                    moves.append(sq)
 
         # Left Capture
         sq = getBoardFromCoord(board, (coord[0] - 1 * direction, coord[1] - 1 * direction))

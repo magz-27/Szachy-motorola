@@ -10,10 +10,10 @@ class Menu:
 
     def __init__(self, screen):
         self.screen = screen
-        self.fnt56 = pygame.font.Font("font.otf", 56)
-        self.fnt48 = pygame.font.Font("font.otf", 48)
-        self.fnt36 = pygame.font.Font("font.otf", 36)
-        self.fnt32 = pygame.font.Font("font.otf", 32)
+        self.fnt56 = pygame.font.Font("graphics/font.otf", 56)
+        self.fnt48 = pygame.font.Font("graphics/font.otf", 48)
+        self.fnt36 = pygame.font.Font("graphics/font.otf", 36)
+        self.fnt32 = pygame.font.Font("graphics/font.otf", 32)
         self.color_gray = (74, 73, 71)
         self.color_hover = (96, 94, 90)
         self.color_click = (128, 124, 118)
@@ -80,6 +80,7 @@ class Menu:
 
             self.difficultyBtn = util.ToggleButton(self.buttonSurface, Rect(300, 500, 300, 40))
             self.difficultyBtn.states, self.difficultyBtn.font = ["Poziom: Latwy", "Poziom: Sredni", "Poziom: Trudny"], self.fnt36
+            self.difficultyBtn.currentState = 1
             self.difficultyBtn.textColor, self.difficultyBtn.textHoverColor, self.difficultyBtn.textClickColor = self.color_gray, (107, 105, 100), (128, 124, 118)
 
             b = util.Button(self.buttonSurface, Rect(300, 600, 300, 55), lambda: pressButton("computer"))
@@ -195,11 +196,11 @@ class Menu:
 class HostMenu:
     def __init__(self, screen):
         self.screen = screen
-        self.fnt56 = pygame.font.Font("font.otf", 56)
-        self.fnt48 = pygame.font.Font("font.otf", 48)
-        self.fnt36 = pygame.font.Font("font.otf", 36)
-        self.fnt32 = pygame.font.Font("font.otf", 32)
-        self.fnt24 = pygame.font.Font("font.otf", 24)
+        self.fnt56 = pygame.font.Font("graphics/font.otf", 56)
+        self.fnt48 = pygame.font.Font("graphics/font.otf", 48)
+        self.fnt36 = pygame.font.Font("graphics/font.otf", 36)
+        self.fnt32 = pygame.font.Font("graphics/font.otf", 32)
+        self.fnt24 = pygame.font.Font("graphics/font.otf", 24)
         self.color_gray = (74, 73, 71)
         self.color_hover = (96, 94, 90)
         self.color_click = (128, 124, 118)

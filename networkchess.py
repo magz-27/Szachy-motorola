@@ -385,16 +385,16 @@ class ChessNetworkGame:
             
             # Handle JSON messages
             try:
-                parsed = json.loads(message)
-                message_type = parsed.get('type', '')
+                try:
+                    parsed = json.loads(message)
+                    message_type = parsed.get('type', '')
+                except json.JSONDecodeError:
+                    return message
                 
                 if message_type == 'MOVE':
                     start_coord = parsed['start_coord']
                     end_coord = parsed['end_coord']
-                    
-                    # Użyj metod z board do znalezienia pól
-                    # Zakładam, że board ma metodę get_square_by_coord lub podobną
-                    # Jeśli nie, dostosuj to do faktycznego API twojej klasy board
+
                     start_square = getBoardFromCoord(board, start_coord)
                     end_square = getBoardFromCoord(board, end_coord)
                     
@@ -409,22 +409,22 @@ class ChessNetworkGame:
                     
                 elif message_type == 'UNDO_REQUEST':
                     return 'UNDO_REQUEST'
-                    
+
                 elif message_type == 'UNDO_RESPONSE':
                     if parsed['accepted']:
                         return 'UNDO_ACCEPTED'
                     else:
                         return 'UNDO_REJECTED'
-                        
+
+                elif message_type == "RESET":
+                    return "RESET"
+
                 elif message_type == 'SUGGESTION_TOGGLE':
                     with self.lock:
                         self.suggestion_enabled = parsed['enabled']
                     return f"SUGGESTION_{'ENABLED' if self.suggestion_enabled else 'DISABLED'}"
                 
                 return None  # Unknown message type
-            except json.JSONDecodeError:
-                print(f"Received invalid JSON format: {message}")
-                return None
             except Exception as e:
                 print(f"Error processing message: {e}")
                 return None
