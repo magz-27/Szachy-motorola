@@ -181,9 +181,10 @@ class mctsNode:
         self.wins = 0
         self.simulations = 0
 
-COPY = 0
+
 def monteCarloTS(board, color, timeLimitMiliseconds):
-    global COPY
+    global pieceDictionary
+
     startTime = pygame.time.get_ticks()
 
     root = mctsNode(None)
@@ -191,16 +192,18 @@ def monteCarloTS(board, color, timeLimitMiliseconds):
     nodesSearched = 0
 
     while (pygame.time.get_ticks() - startTime < timeLimitMiliseconds):
-        traversingResult = mctsTraverse(board,root)
-        simulationResult = mctsSimulate(traversingResult[0], traversingResult[1])
-        newLeaf = traversingResult[1].children[-1]
+        dictSave = copy.deepcopy(pieceDictionary)
+
+        modifiedBoard, chosenNode = mctsTraverse(board,root)
+        simulationResult = mctsSimulate(modifiedBoard, chosenNode)
+        resetDictionary(dictSave)
+        
+        newLeaf = chosenNode.children[-1]
         mctsBackpropagate(newLeaf, simulationResult)
         nodesSearched += 1
 
     bestFoundMove = None
     mostSimulations = 0
-
-    print(COPY)
 
     for child in root.children:
         if (child.simulations > mostSimulations):
@@ -236,32 +239,25 @@ def resetDictionary(sourceDictionary: dict):
         pieceDictionary[key] = value
 
 def mctsTraverse(board,node):
-    global pieceDictionary
-
     boardCopy = copy.deepcopy(board)
     color = "b" if node.blacksTurn else "w"
 
     availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(color))
 
-    dictSave = copy.deepcopy(pieceDictionary)
 
     while len(node.children) >= len(availableMoves):
-        if node.move != None:
-            boardCopy = movePiece(boardCopy, node.move[0], node.move[1], updateDict=True)
         
         if len(node.children) == 0:
-            resetDictionary(dictSave)
-            return [boardCopy, node]
+            return boardCopy, node
         
         node = mctsUCT(node)
+        boardCopy = movePiece(boardCopy, node.move[0], node.move[1], updateDict=True)
 
         color = "b" if node.blacksTurn else "w"
 
         availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(color))
 
-    resetDictionary(dictSave)
-
-    return [boardCopy,node]
+    return boardCopy,node
 
 
 def mctsRandomPieceMoves(board, color):
@@ -284,13 +280,9 @@ def mctsRandomPieceMoves(board, color):
 
 def mctsSimulate(board,node):
     global changesStack, pieceDictionary
-    global COPY
 
     dictSave = copy.deepcopy(pieceDictionary)
     stackSave = copy.deepcopy(changesStack)
-
-    if node.move != None:
-        board = overridingMovePiece(board, node.move[0], node.move[1])
 
     color = "b" if node.blacksTurn else "w"
 
