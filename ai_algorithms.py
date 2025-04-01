@@ -183,15 +183,22 @@ class mctsNode:
 
 
 def monteCarloTS(board, color, timeLimitMiliseconds):
+    global pieceDictionary
+
     startTime = pygame.time.get_ticks()
 
     root = mctsNode(None)
     root.blacksTurn = color == "b"
     nodesSearched = 0
+
     while (pygame.time.get_ticks() - startTime < timeLimitMiliseconds):
-        traversingResult = mctsTraverse(board,root)
-        simulationResult = mctsSimulate(traversingResult[0], traversingResult[1])
-        newLeaf = traversingResult[1].children[-1]
+        dictSave = copy.deepcopy(pieceDictionary)
+
+        modifiedBoard, chosenNode = mctsTraverse(board,root)
+        simulationResult = mctsSimulate(modifiedBoard, chosenNode)
+        resetDictionary(dictSave)
+        
+        newLeaf = chosenNode.children[-1]
         mctsBackpropagate(newLeaf, simulationResult)
         nodesSearched += 1
 
@@ -200,6 +207,7 @@ def monteCarloTS(board, color, timeLimitMiliseconds):
 
     for child in root.children:
         if (child.simulations > mostSimulations):
+            mostSimulations = child.simulations
             bestFoundMove = child.move
 
     return [nodesSearched, bestFoundMove]
@@ -217,48 +225,68 @@ def mctsUCT(node: mctsNode):
 
     return node.children[bestId]
 
-def findKingPosition(board, color):
+def findKingPosition(color):
     global pieceDictionary
     key = color + "k"
     for pos in pieceDictionary[key].keys():
         return pos
+    
+def resetDictionary(sourceDictionary: dict):
+    global pieceDictionary
+
+    pieceDictionary.clear()
+    for key, value in sourceDictionary.items():
+        pieceDictionary[key] = value
 
 def mctsTraverse(board,node):
     boardCopy = copy.deepcopy(board)
     color = "b" if node.blacksTurn else "w"
-    dir = 1 if color == "w" else -1
 
-    availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(boardCopy, color))
+    availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(color))
 
-    while len(node.children) == len(availableMoves):
-        if node.move != None:
-            boardCopy = movePiece(boardCopy, node.move[0], node.move[1])
+
+    while len(node.children) >= len(availableMoves):
         
         if len(node.children) == 0:
-            return [boardCopy, node]
+            return boardCopy, node
         
         node = mctsUCT(node)
+        boardCopy = movePiece(boardCopy, node.move[0], node.move[1], updateDict=True)
 
         color = "b" if node.blacksTurn else "w"
 
-        availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(boardCopy, color))
+        availableMoves = mctsGetAllMoves(boardCopy, color, findKingPosition(color))
+
+    return boardCopy,node
 
 
-    return [boardCopy,node]
-    
-def mctsSimulate(board,node):
-    global changesStack
+def mctsRandomPieceMoves(board, color):
     global pieceDictionary
-    
+
+    pieces = []
+
+
+    types = list(pieceDictionary.keys())
+    for type in types:
+        if type[0] == color:
+            pieces.extend(list(pieceDictionary[type].values()))
+
+    pieces = randomPermutation(pieces)
+
+    for piece in pieces:
+        moves = calculateMoves(board, piece.coord, piece.type.name, color, 1 if color == "w" else -1, findKingPosition(color), True)
+        if len(moves) > 0:
+            return [piece, moves]
+
+def mctsSimulate(board,node):
+    global changesStack, pieceDictionary
+
     dictSave = copy.deepcopy(pieceDictionary)
     stackSave = copy.deepcopy(changesStack)
 
-    if node.move != None:
-        board = overridingMovePiece(board, node.move[0], node.move[1])
-
     color = "b" if node.blacksTurn else "w"
 
-    availableMoves = mctsGetAllMoves(board, color, findKingPosition(board, color))
+    availableMoves = mctsGetAllMoves(board, color, findKingPosition(color))
 
     state = 0
 
@@ -275,14 +303,24 @@ def mctsSimulate(board,node):
 
         # simulation
         blacksTurn = childNode.blacksTurn
-        state = gameState(board, findKingPosition(board, "w"), findKingPosition(board, "b"), blacksTurn)
+        state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn)[0]
 
+        availableMoves = None
         while (state == "0"):
             color = "b" if blacksTurn else "w"
-            availableMoves = mctsGetAllMoves(board, color, findKingPosition(board, color))
-
+            if availableMoves == None:
+                availableMoves = mctsGetAllMoves(board, color, findKingPosition(color))
+            
+            if len(availableMoves) == 0:
+                if color == "b":
+                    state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))[0]
+                else:
+                    state = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, whiteMoveCount=len(availableMoves))[0]
+                break
+            
             # perform random moves
             moveSquare = random.choice(availableMoves)
+
 
             movesSinceLastCapture += 1
             if (getBoardFromCoord(board, moveSquare[1].coord).type.color != None):
@@ -294,13 +332,18 @@ def mctsSimulate(board,node):
 
             board = overridingMovePiece(board, moveSquare[0].coord, moveSquare[1].coord)
             blacksTurn = not blacksTurn
-            state = gameState(board, findKingPosition(board, "w"), findKingPosition(board, "b"), blacksTurn)
+            if color == "b":
+                state, availableMoves = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, blackMoveCount=len(availableMoves))
+            else:
+                state, availableMoves = gameState(board, findKingPosition("w"), findKingPosition("b"), blacksTurn, whiteMoveCount=len(availableMoves))
+
+
     else:
-        state = gameState(board, findKingPosition(board, "w"), findKingPosition(board, "b"), node.blacksTurn)
+        state = gameState(board, findKingPosition("w"), findKingPosition("b"), node.blacksTurn)[0]
+
 
     # reverse made changes:
-    for key, value in dictSave.items():
-        pieceDictionary[key] = value
+    resetDictionary(dictSave)
     changesStack.clear()
     changesStack.extend(stackSave)
 

@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import *
+import random
 
 # stores lists of existing pieces sorted by color and type,
 # with keys formatted as "color" + "name":
@@ -9,6 +10,8 @@ pieceDictionary = {}
 
 def initPieceDictionary(board):
     global pieceDictionary
+
+    pieceDictionary.clear()
     
     for square in board:
         if square == None or square.type.color == None or square.type.name == None:
@@ -539,31 +542,37 @@ def undoLastOverride():
         undoLastOverride()
 
 
-def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDirection = False):
+def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, whiteMoveCount = None, blackMoveCount = None, reverseDirection = False):
     isWhiteInCheck = check(board, "w", kingWhiteCoord)
     isBlackInCheck = check(board, "b", kingBlackCoord)
-    whiteMoveCount = len(getAllMoves(board, "w", -1 if reverseDirection else 1, kingWhiteCoord, True))
-    blackMoveCount = len(getAllMoves(board, "b", 1 if reverseDirection else -1, kingBlackCoord, True))
+
+    oppositeMoves = []
+    if whiteMoveCount == None:
+        oppositeMoves = mctsGetAllMoves(board, "w", kingWhiteCoord)
+        whiteMoveCount = len(oppositeMoves)
+    if blackMoveCount == None:
+        oppositeMoves = mctsGetAllMoves(board, "b", kingBlackCoord)
+        blackMoveCount = len(oppositeMoves)
 
     if blacksTurn:
         if blackMoveCount == 0:
             if isBlackInCheck:
                 # white won
-                return "w"
+                return "w", oppositeMoves
             
             # draw by stalemate
-            return "d"
+            return "d", oppositeMoves
     else:
         if whiteMoveCount == 0:
             if isWhiteInCheck:
                 # black won
-                return "b"
+                return "b", oppositeMoves
             
             # draw by stalemate
-            return "d"
+            return "d", oppositeMoves
     
     # game has not ended yet
-    return "0"
+    return "0", oppositeMoves
 
 
 def debugPreviewBoard(board):
@@ -577,3 +586,13 @@ def debugPreviewBoard(board):
                 str += piece.type.name + piece.type.color + " "
         print(str)
     print("-------------------------")
+
+def randomPermutation(list: list):
+    for i, elem in enumerate(list):
+        newIndex = random.randint(0, len(list)-1)
+
+        # swap current element with a random one
+        list[i] = list[newIndex]
+        list[newIndex] = elem
+
+    return list
