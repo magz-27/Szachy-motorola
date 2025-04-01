@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import *
+import random
 
 # stores lists of existing pieces sorted by color and type,
 # with keys formatted as "color" + "name":
@@ -8,6 +9,8 @@ pieceDictionary = {}
 
 def initPieceDictionary(board):
     global pieceDictionary
+
+    pieceDictionary.clear()
     
     for square in board:
         if square == None or square.type.color == None or square.type.name == None:
@@ -539,11 +542,13 @@ def undoLastOverride():
         undoLastOverride()
 
 
-def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, reverseDirection = False):
+def gameState(board, kingWhiteCoord, kingBlackCoord, blacksTurn: bool, whiteMoveCount = None, blackMoveCount = None, reverseDirection = False, ):
     isWhiteInCheck = check(board, "w", kingWhiteCoord)
     isBlackInCheck = check(board, "b", kingBlackCoord)
-    whiteMoveCount = len(getAllMoves(board, "w", -1 if reverseDirection else 1, kingWhiteCoord, True))
-    blackMoveCount = len(getAllMoves(board, "b", 1 if reverseDirection else -1, kingBlackCoord, True))
+    if whiteMoveCount == None:
+        whiteMoveCount = len(mctsGetAllMoves(board, "w", kingBlackCoord))
+    if blackMoveCount == None:
+        blackMoveCount = len(mctsGetAllMoves(board, "b", kingBlackCoord))
 
     if blacksTurn:
         if blackMoveCount == 0:
@@ -576,3 +581,13 @@ def debugPreviewBoard(board):
                 str += piece.type.name + piece.type.color + " "
         print(str)
     print("-------------------------")
+
+def randomPermutation(list: list):
+    for i, elem in enumerate(list):
+        newIndex = random.randint(0, len(list)-1)
+
+        # swap current element with a random one
+        list[i] = list[newIndex]
+        list[newIndex] = elem
+
+    return list
